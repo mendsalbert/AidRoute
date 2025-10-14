@@ -1,52 +1,48 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { cn } from '@/lib/utils'
-import { 
-  Home, 
-  Activity, 
-  Brain, 
-  Shield, 
-  User,
-  Globe,
-  Zap
-} from 'lucide-react'
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { Home, Activity, Brain, Shield, User, Globe, Zap } from "lucide-react";
 
 interface DashboardLayoutProps {
-  children: React.ReactNode
-  activeView: 'home' | 'operations' | 'planning' | 'audit'
-  onViewChange: (view: 'home' | 'operations' | 'planning' | 'audit') => void
+  children: React.ReactNode;
+  activeView: "home" | "operations" | "planning" | "audit";
+  onViewChange: (view: "home" | "operations" | "planning" | "audit") => void;
 }
 
-export function DashboardLayout({ children, activeView, onViewChange }: DashboardLayoutProps) {
-  const [userIdentity] = useState('omar-coordinator-4A')
+export function DashboardLayout({
+  children,
+  activeView,
+  onViewChange,
+}: DashboardLayoutProps) {
+  const [userIdentity] = useState("omar-coordinator-4A");
 
   const navigationItems = [
     {
-      id: 'home' as const,
-      label: 'Overview',
+      id: "home" as const,
+      label: "Overview",
       icon: Home,
-      description: 'System Status'
+      description: "System Status",
     },
     {
-      id: 'operations' as const,
-      label: 'Operations',
+      id: "operations" as const,
+      label: "Operations",
       icon: Activity,
-      description: 'Live Logistics'
+      description: "Live Logistics",
     },
     {
-      id: 'planning' as const,
-      label: 'Planning',
+      id: "planning" as const,
+      label: "Planning",
       icon: Brain,
-      description: 'AI Collaboration'
+      description: "AI Collaboration",
     },
     {
-      id: 'audit' as const,
-      label: 'Audit',
+      id: "audit" as const,
+      label: "Audit",
       icon: Shield,
-      description: 'Transparency'
-    }
-  ]
+      description: "Transparency",
+    },
+  ];
 
   return (
     <div className="h-screen bg-background text-foreground flex overflow-hidden">
@@ -60,15 +56,19 @@ export function DashboardLayout({ children, activeView, onViewChange }: Dashboar
             </div>
             <div>
               <h1 className="text-xl font-bold">AidRoute</h1>
-              <p className="text-sm text-muted-foreground">Autonomous Command</p>
+              <p className="text-sm text-muted-foreground">
+                Autonomous Command
+              </p>
             </div>
           </div>
-          
+
           {/* User Identity */}
           <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg">
             <User className="w-4 h-4 text-secondary-foreground" />
             <div>
-              <p className="text-sm font-medium text-secondary-foreground">{userIdentity}</p>
+              <p className="text-sm font-medium text-secondary-foreground">
+                {userIdentity}
+              </p>
               <p className="text-xs text-muted-foreground">Field Coordinator</p>
             </div>
             <div className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -79,9 +79,9 @@ export function DashboardLayout({ children, activeView, onViewChange }: Dashboar
         <nav className="flex-1 p-4">
           <div className="space-y-2">
             {navigationItems.map((item) => {
-              const Icon = item.icon
-              const isActive = activeView === item.id
-              
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
+
               return (
                 <button
                   key={item.id}
@@ -101,7 +101,7 @@ export function DashboardLayout({ children, activeView, onViewChange }: Dashboar
                     <div className="ml-auto w-2 h-2 bg-current rounded-full animate-pulse"></div>
                   )}
                 </button>
-              )
+              );
             })}
           </div>
         </nav>
@@ -127,17 +127,18 @@ export function DashboardLayout({ children, activeView, onViewChange }: Dashboar
             <h2 className="text-lg font-semibold capitalize">{activeView}</h2>
             <div className="h-4 w-px bg-border"></div>
             <p className="text-sm text-muted-foreground">
-              {new Date().toLocaleString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })} UTC
+              {new Date().toLocaleString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              UTC
             </p>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -147,10 +148,8 @@ export function DashboardLayout({ children, activeView, onViewChange }: Dashboar
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-auto">
-          {children}
-        </div>
+        <div className="flex-1 overflow-auto">{children}</div>
       </main>
     </div>
-  )
+  );
 }
