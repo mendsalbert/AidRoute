@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { Home, Activity, Brain, Shield, User, Globe, Zap } from "lucide-react";
+import { Home, Activity, Brain, Shield, User, Zap } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -51,8 +52,14 @@ export function DashboardLayout({
         {/* Header */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Globe className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-2 shadow-sm">
+              <Image
+                src="/logo.png"
+                alt="AidRoute Logo"
+                width={24}
+                height={24}
+                className="w-6 h-6 object-contain"
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold">AidRoute</h1>
