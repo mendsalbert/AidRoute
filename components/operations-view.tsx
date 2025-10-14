@@ -1,306 +1,319 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
+import { aidRouteSimulation, type Mission, type Need } from '@/lib/simulation'
 import {
-  MapPin,
-  Truck,
+  Activity,
+  Map,
   Clock,
+  Package,
   AlertTriangle,
   CheckCircle,
-  Activity,
-} from "lucide-react";
-import { Mission, Need, ActivityFeedItem } from "@/lib/types";
-import {
-  generateMockMissions,
-  generateMockNeeds,
-  generateActivityFeed,
-} from "@/lib/data-simulation";
+  Truck,
+  MapPin,
+  TrendingUp,
+  Zap
+} from 'lucide-react'
 
-export default function OperationsView() {
-  const [missions, setMissions] = useState<Mission[]>(generateMockMissions());
-  const [needs, setNeeds] = useState<Need[]>(generateMockNeeds());
-  const [activityFeed, setActivityFeed] = useState<ActivityFeedItem[]>(
-    generateActivityFeed()
-  );
+export function OperationsView() {
+  const [missions, setMissions] = useState<Mission[]>([])
+  const [needs, setNeeds] = useState<Need[]>([])
+  const [recentDeliveries, setRecentDeliveries] = useState<string[]>([])
 
   useEffect(() => {
-    // Simulate mission movement and status updates
-    const interval = setInterval(() => {
-      setMissions((prevMissions) =>
-        prevMissions.map((mission) => {
-          if (mission.status === "en_route") {
-            // Simulate coordinate movement
-            const newX = Math.max(
-              50,
-              Math.min(400, mission.coordinates.x + (Math.random() - 0.5) * 20)
-            );
-            const newY = Math.max(
-              50,
-              Math.min(300, mission.coordinates.y + (Math.random() - 0.5) * 20)
-            );
+    // Initial load
+    setMissions(aidRouteSimulation.getMissions())
+    setNeeds(aidRouteSimulation.getNeeds())
 
-            return {
-              ...mission,
-              coordinates: { x: newX, y: newY },
-            };
-          }
-          return mission;
-        })
-      );
-    }, 3000);
+    // Set up listeners
+    const handleMissionsUpdated = (updatedMissions: Mission[]) => {
+      setMissions(updatedMissions)
+    }
 
-    return () => clearInterval(interval);
-  }, []);
+    const handleNeedsUpdated = (updatedNeeds: Need[]) => {
+      setNeeds(updatedNeeds)
+    }
 
-  const kpiData = [
-    {
-      label: "Active Missions",
-      value: missions.filter((m) => m.status !== "completed").length,
-      color: "text-blue-400",
-    },
-    {
-      label: "Critical Needs",
-      value: needs.filter((n) => n.urgency === "critical").length,
-      color: "text-red-400",
-    },
-    {
-      label: "Fulfilled Deliveries",
-      value: missions.filter((m) => m.status === "completed").length,
-      color: "text-green-400",
-    },
-    { label: "Avg Response Time", value: "2.3h", color: "text-purple-400" },
-  ];
+    const handleMissionCompleted = ({ mission }: any) => {
+      setRecentDeliveries(prev => [
+        `${mission.destination} - ${mission.assignedResources[0]} delivered successfully`,
+        ...prev.slice(0, 4)
+      ])
+    }
 
-  const getStatusColor = (status: Mission["status"]) => {
+    aidRouteSimulation.on('missions-updated', handleMissionsUpdated)
+    aidRouteSimulation.on('needs-updated', handleNeedsUpdated)
+    aidRouteSimulation.on('mission-completed', handleMissionCompleted)
+
+    return () => {
+      aidRouteSimulation.off('missions-updated', handleMissionsUpdated)
+      aidRouteSimulation.off('needs-updated', handleNeedsUpdated)
+      aidRouteSimulation.off('mission-completed', handleMissionCompleted)
+    }
+  }, [])
+
+  const activeMissions = missions.filter(m => ['planning', 'en-route', 'delivering'].includes(m.status))
+  const criticalNeeds = needs.filter(n => n.urgency === 'critical' && n.status === 'open')
+  const averageResponseTime = Math.floor(Math.random() * 180) + 120 // Simulated
+
+  const getStatusColor = (status: Mission['status']) => {
     switch (status) {
-      case "planning":
-        return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
-      case "en_route":
-        return "text-blue-400 bg-blue-500/10 border-blue-500/30";
-      case "delivered":
-        return "text-green-400 bg-green-500/10 border-green-500/30";
-      case "completed":
-        return "text-slate-400 bg-slate-500/10 border-slate-500/30";
-      default:
-        return "text-slate-400 bg-slate-500/10 border-slate-500/30";
+      case 'planning': return 'text-yellow-500'
+      case 'en-route': return 'text-blue-500'
+      case 'delivering': return 'text-purple-500'
+      case 'completed': return 'text-green-500'
+      default: return 'text-gray-500'
     }
-  };
+  }
 
-  const getUrgencyColor = (urgency: Need["urgency"]) => {
+  const getUrgencyColor = (urgency: Need['urgency']) => {
     switch (urgency) {
-      case "critical":
-        return "text-red-400 bg-red-500/10 border-red-500/30";
-      case "high":
-        return "text-orange-400 bg-orange-500/10 border-orange-500/30";
-      case "medium":
-        return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
-      case "low":
-        return "text-green-400 bg-green-500/10 border-green-500/30";
-      default:
-        return "text-slate-400 bg-slate-500/10 border-slate-500/30";
+      case 'critical': return 'text-red-500 bg-red-500/10 border-red-500/20'
+      case 'high': return 'text-orange-500 bg-orange-500/10 border-orange-500/20'
+      case 'medium': return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'
+      case 'low': return 'text-green-500 bg-green-500/10 border-green-500/20'
     }
-  };
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Operations Center</h1>
-          <p className="text-slate-400 mt-1">
-            Real-time logistics coordination and field operations
-          </p>
-        </div>
-        <div className="flex items-center space-x-2 text-sm text-slate-400">
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-          <span>Live Operations Active</span>
-        </div>
-      </div>
-
+    <div className="p-6 space-y-6">
       {/* KPI Summary Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpiData.map((kpi, index) => (
-          <div
-            key={kpi.label}
-            className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-lg p-4"
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <p className="text-slate-400 text-sm font-medium">{kpi.label}</p>
-            <p className={`${kpi.color} text-2xl font-bold mt-1`}>
-              {kpi.value}
-            </p>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{activeMissions.length}</p>
+              <p className="text-sm text-muted-foreground">Active Missions</p>
+            </div>
+            <Activity className="w-8 h-8 text-blue-500" />
           </div>
-        ))}
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{criticalNeeds.length}</p>
+              <p className="text-sm text-muted-foreground">Critical Needs</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{missions.filter(m => m.status === 'completed').length}</p>
+              <p className="text-sm text-muted-foreground">Fulfilled Today</p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-500" />
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold">{averageResponseTime}m</p>
+              <p className="text-sm text-muted-foreground">Avg Response Time</p>
+            </div>
+            <Clock className="w-8 h-8 text-purple-500" />
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Simulated Map Interface */}
-        <div className="lg:col-span-2 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-            <MapPin className="w-5 h-5" />
-            <span>Mission Tracking</span>
-          </h3>
+        <div className="bg-card border border-border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Map className="w-5 h-5" />
+              Live Mission Tracking
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Real-time</span>
+            </div>
+          </div>
 
-          <div className="relative bg-slate-900/50 rounded-lg border border-slate-700/50 h-96 overflow-hidden">
-            {/* Grid background */}
-            <div className="absolute inset-0 opacity-20">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute border-l border-slate-600"
-                  style={{ left: `${i * 5}%` }}
-                />
+          {/* Simulated Map Grid */}
+          <div className="bg-secondary/20 rounded-lg p-4 h-80 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5"></div>
+            
+            {/* Grid overlay */}
+            <div className="absolute inset-0 opacity-10">
+              {Array.from({length: 8}).map((_, i) => (
+                <div key={i} className="absolute border-l border-muted" style={{left: `${i * 12.5}%`, height: '100%'}} />
               ))}
-              {Array.from({ length: 15 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute border-t border-slate-600"
-                  style={{ top: `${i * 6.67}%` }}
-                />
+              {Array.from({length: 6}).map((_, i) => (
+                <div key={i} className="absolute border-t border-muted" style={{top: `${i * 16.67}%`, width: '100%'}} />
               ))}
             </div>
 
             {/* Mission markers */}
-            {missions.map((mission) => (
+            {activeMissions.slice(0, 6).map((mission, index) => (
               <div
                 key={mission.id}
-                className={`absolute w-4 h-4 rounded-full border-2 transition-all duration-1000 ${
-                  mission.status === "en_route"
-                    ? "bg-blue-400 border-blue-300 animate-pulse"
-                    : mission.status === "planning"
-                    ? "bg-yellow-400 border-yellow-300"
-                    : "bg-green-400 border-green-300"
-                }`}
+                className="absolute transition-all duration-1000 ease-in-out"
                 style={{
-                  left: `${mission.coordinates.x}px`,
-                  top: `${mission.coordinates.y}px`,
-                  transform: "translate(-50%, -50%)",
+                  left: `${20 + (index * 12) + (mission.progress * 0.3)}%`,
+                  top: `${15 + (index * 10) + Math.sin(Date.now() / 2000 + index) * 5}%`
                 }}
-                title={`${mission.id} - ${mission.destination}`}
               >
-                {mission.status === "en_route" && (
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-400 rounded-full animate-ping" />
-                )}
+                <div className={cn(
+                  "w-3 h-3 rounded-full border-2 border-white shadow-lg animate-pulse",
+                  mission.status === 'planning' && "bg-yellow-500",
+                  mission.status === 'en-route' && "bg-blue-500",
+                  mission.status === 'delivering' && "bg-purple-500"
+                )}>
+                </div>
+                <div className="absolute -top-8 -left-12 bg-card border border-border rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg">
+                  Mission {mission.id.slice(-3)}
+                </div>
               </div>
             ))}
 
-            {/* Zone labels */}
-            <div className="absolute top-4 left-4 text-xs text-slate-400 font-mono">
-              Zone Alpha
-            </div>
-            <div className="absolute top-4 right-4 text-xs text-slate-400 font-mono">
-              Zone Beta
-            </div>
-            <div className="absolute bottom-4 left-4 text-xs text-slate-400 font-mono">
-              Sector Gamma
-            </div>
-            <div className="absolute bottom-4 right-4 text-xs text-slate-400 font-mono">
-              Camp Delta
+            {/* Route lines */}
+            {activeMissions.slice(0, 3).map((mission, index) => (
+              <svg key={`route-${mission.id}`} className="absolute inset-0 w-full h-full">
+                <path
+                  d={`M ${20 + (index * 12)}% ${20 + (index * 10)}% Q ${50 + (index * 5)}% ${30 + (index * 8)}% ${75 + (index * 3)}% ${25 + (index * 12)}%`}
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  fill="none"
+                  className="text-primary/30 animate-pulse"
+                  strokeDasharray="4,4"
+                />
+              </svg>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <span>Planning</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span>En Route</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                <span>Delivering</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Activity Feed */}
-        <div className="space-y-6">
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-              <Activity className="w-5 h-5" />
-              <span>Live Activity</span>
-            </h3>
-            <div className="space-y-3">
-              {activityFeed.slice(0, 6).map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start space-x-3 p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors"
-                >
-                  <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse mt-2" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-slate-300 text-sm">{activity.message}</p>
-                    <p className="text-slate-500 text-xs mt-1">
-                      {new Date(activity.timestamp).toLocaleTimeString()}
-                    </p>
+        {/* Active Missions List */}
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Truck className="w-5 h-5" />
+            Active Missions
+          </h3>
+          
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {activeMissions.slice(0, 8).map((mission) => (
+              <div key={mission.id} className="p-3 bg-secondary/50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm">#{mission.id.slice(-6)}</span>
+                    <span className={cn("text-sm font-medium", getStatusColor(mission.status))}>
+                      {mission.status}
+                    </span>
                   </div>
+                  <span className="text-xs text-muted-foreground">
+                    {mission.progress}% complete
+                  </span>
                 </div>
-              ))}
-            </div>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>{mission.location} → {mission.destination}</span>
+                </div>
+
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-1000"
+                    style={{ width: `${mission.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Mission Details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Active Missions */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-            <Truck className="w-5 h-5" />
-            <span>Active Missions</span>
-          </h3>
-          <div className="space-y-4">
-            {missions
-              .filter((m) => m.status !== "completed")
-              .map((mission) => (
-                <div
-                  key={mission.id}
-                  className={`p-4 rounded-lg border ${getStatusColor(
-                    mission.status
-                  )}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm font-medium">
-                      {mission.id}
-                    </span>
-                    <span className="text-xs capitalize">
-                      {mission.status.replace("_", " ")}
-                    </span>
-                  </div>
-                  <p className="text-slate-300 text-sm mb-2">
-                    Destination: {mission.destination}
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>
-                      Funds: ${mission.fundsRequired.toLocaleString()}
-                    </span>
-                    <span>Resources: {mission.assignedResources.length}</span>
-                  </div>
+        {/* Recent Needs Feed */}
+        <div className="bg-card border border-border rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Incoming Needs
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Zap className="w-4 h-4 text-green-500" />
+              <span>Live Feed</span>
+            </div>
+          </div>
+
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {needs.slice(0, 6).map((need) => (
+              <div key={need.id} className="p-3 bg-secondary/50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className={cn(
+                    "px-2 py-1 rounded-full text-xs font-medium border",
+                    getUrgencyColor(need.urgency)
+                  )}>
+                    {need.urgency}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(need.timestamp).toLocaleTimeString()}
+                  </span>
                 </div>
-              ))}
+                
+                <div className="text-sm">
+                  <p className="font-medium">{need.item}</p>
+                  <p className="text-muted-foreground">{need.location} • Qty: {need.quantity}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Urgent Needs */}
-        <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-            <AlertTriangle className="w-5 h-5" />
-            <span>Urgent Needs</span>
+        {/* Recent Deliveries Feed */}
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Recent Deliveries
           </h3>
-          <div className="space-y-4">
-            {needs
-              .filter((n) => n.urgency === "critical" || n.urgency === "high")
-              .map((need) => (
-                <div
-                  key={need.id}
-                  className={`p-4 rounded-lg border ${getUrgencyColor(
-                    need.urgency
-                  )}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-mono text-sm font-medium">
-                      {need.id}
+
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {recentDeliveries.length > 0 ? (
+              recentDeliveries.map((delivery, index) => (
+                <div key={index} className={cn(
+                  "p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm",
+                  "animate-in slide-in-from-top-1 duration-500"
+                )}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <span>{delivery}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {index === 0 ? 'Just now' : `${(index + 1) * 3}m ago`}
                     </span>
-                    <span className="text-xs capitalize">{need.urgency}</span>
-                  </div>
-                  <p className="text-slate-300 text-sm mb-2">
-                    {need.item} - {need.quantity} units
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Location: {need.location}</span>
-                    <span className="capitalize">{need.status}</span>
                   </div>
                 </div>
-              ))}
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Monitoring deliveries...</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }

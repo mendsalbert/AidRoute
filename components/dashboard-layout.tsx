@@ -1,102 +1,156 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { LayoutDashboard, Home, Zap, Brain, Shield } from "lucide-react";
-import { DashboardView } from "@/lib/types";
+import { useState } from 'react'
+import { cn } from '@/lib/utils'
+import { 
+  Home, 
+  Activity, 
+  Brain, 
+  Shield, 
+  User,
+  Globe,
+  Zap
+} from 'lucide-react'
 
 interface DashboardLayoutProps {
-  children: React.ReactNode;
-  currentView: DashboardView;
-  onViewChange: (view: DashboardView) => void;
+  children: React.ReactNode
+  activeView: 'home' | 'operations' | 'planning' | 'audit'
+  onViewChange: (view: 'home' | 'operations' | 'planning' | 'audit') => void
 }
 
-export default function DashboardLayout({
-  children,
-  currentView,
-  onViewChange,
-}: DashboardLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+export function DashboardLayout({ children, activeView, onViewChange }: DashboardLayoutProps) {
+  const [userIdentity] = useState('omar-coordinator-4A')
 
   const navigationItems = [
-    { id: "home" as DashboardView, label: "Home", icon: Home },
-    { id: "operations" as DashboardView, label: "Operations", icon: Zap },
-    { id: "planning" as DashboardView, label: "Planning", icon: Brain },
-    { id: "audit" as DashboardView, label: "Audit", icon: Shield },
-  ];
+    {
+      id: 'home' as const,
+      label: 'Overview',
+      icon: Home,
+      description: 'System Status'
+    },
+    {
+      id: 'operations' as const,
+      label: 'Operations',
+      icon: Activity,
+      description: 'Live Logistics'
+    },
+    {
+      id: 'planning' as const,
+      label: 'Planning',
+      icon: Brain,
+      description: 'AI Collaboration'
+    },
+    {
+      id: 'audit' as const,
+      label: 'Audit',
+      icon: Shield,
+      description: 'Transparency'
+    }
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-      {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
-            >
-              <LayoutDashboard className="w-5 h-5 text-slate-300" />
-            </button>
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">AR</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">AidRoute</h1>
-                <p className="text-xs text-slate-400">
-                  Autonomous Humanitarian Network
-                </p>
-              </div>
+    <div className="h-screen bg-background text-foreground flex overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 bg-card border-r border-border flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <Globe className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">AidRoute</h1>
+              <p className="text-sm text-muted-foreground">Autonomous Command</p>
             </div>
           </div>
-
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm text-slate-300">Active Coordinator</p>
-              <p className="text-xs text-slate-400 font-mono">
-                omar-coordinator-4A
-              </p>
+          
+          {/* User Identity */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg">
+            <User className="w-4 h-4 text-secondary-foreground" />
+            <div>
+              <p className="text-sm font-medium text-secondary-foreground">{userIdentity}</p>
+              <p className="text-xs text-muted-foreground">Field Coordinator</p>
             </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">O</span>
-            </div>
+            <div className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           </div>
         </div>
-      </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        {isSidebarOpen && (
-          <aside className="w-64 bg-slate-800/30 backdrop-blur-sm border-r border-slate-700/50 min-h-screen">
-            <nav className="p-4 space-y-2">
-              {navigationItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentView === item.id;
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
+            {navigationItems.map((item) => {
+              const Icon = item.icon
+              const isActive = activeView === item.id
+              
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onViewChange(item.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                    "hover:bg-secondary hover:text-secondary-foreground",
+                    isActive && "bg-primary text-primary-foreground shadow-md"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  <div className="text-left">
+                    <p className="font-medium">{item.label}</p>
+                    <p className="text-xs opacity-70">{item.description}</p>
+                  </div>
+                  {isActive && (
+                    <div className="ml-auto w-2 h-2 bg-current rounded-full animate-pulse"></div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </nav>
 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onViewChange(item.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                      isActive
-                        ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
-                        : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
-        )}
+        {/* System Status */}
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Zap className="w-4 h-4 text-green-500" />
+            <span>All Systems Operational</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Network: Connected</span>
+          </div>
+        </div>
+      </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6">{children}</main>
-      </div>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold capitalize">{activeView}</h2>
+            <div className="h-4 w-px bg-border"></div>
+            <p className="text-sm text-muted-foreground">
+              {new Date().toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })} UTC
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-sm">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Live</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
+      </main>
     </div>
-  );
+  )
 }

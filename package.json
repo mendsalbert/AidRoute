@@ -1,6 +1,6 @@
 {
-  "name": "aidroute-dashboard",
-  "version": "1.0.0",
+  "name": "gdff",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

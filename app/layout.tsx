@@ -13,9 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AidRoute - Autonomous Humanitarian Dashboard",
-  description:
-    "Coordinating Aid. Autonomously. Next-generation humanitarian coordination system with AI-assisted planning and donor transparency.",
+  title: "AidRoute - Autonomous Humanitarian Coordination",
+  description: "AI-powered humanitarian logistics coordination platform. Coordinating Aid. Autonomously.",
 };
 
 export default function RootLayout({

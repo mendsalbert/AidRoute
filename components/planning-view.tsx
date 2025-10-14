@@ -1,269 +1,400 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useRef } from "react";
-import { Send, Brain, Eye, Lock, MessageSquare, Zap } from "lucide-react";
-import { AIChatMessage } from "@/lib/types";
-import { generateAIChatHistory } from "@/lib/data-simulation";
+import { useState, useEffect, useRef } from 'react'
+import { cn } from '@/lib/utils'
+import { aidRouteSimulation, type Need } from '@/lib/simulation'
+import {
+  Brain,
+  Send,
+  MessageCircle,
+  Loader2,
+  CheckCircle,
+  Eye,
+  DollarSign,
+  Route,
+  Shield,
+  Zap
+} from 'lucide-react'
 
-export default function PlanningView() {
-  const [messages, setMessages] = useState<AIChatMessage[]>(
-    generateAIChatHistory()
-  );
-  const [inputValue, setInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-  const [showReasoning, setShowReasoning] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+interface ChatMessage {
+  id: string
+  type: 'user' | 'ai' | 'system'
+  content: string
+  timestamp: Date
+}
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+interface PlanningResult {
+  supplier: string
+  route: string
+  risk: string
+  funds: number
+  reasoning: string
+}
+
+export function PlanningView() {
+  const [needs, setNeeds] = useState<Need[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: '1',
+      type: 'system',
+      content: 'AI Planning Agent Online. Ready to optimize humanitarian logistics.',
+      timestamp: new Date()
+    }
+  ])
+  const [inputMessage, setInputMessage] = useState('')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [showReasoning, setShowReasoning] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState<PlanningResult | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
-
-    const userMessage: AIChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: "user",
-      content: inputValue,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsTyping(true);
-
-    // Simulate AI response with multiple steps
-    const responses = [
-      "Analyzing network topology...",
-      "Querying available supply nodes...",
-      "Calculating optimal routes using MeTTa Nodes...",
-      "Evaluating risk factors and cost efficiency...",
-      "Proposal ready: Supplier Y optimal. Route Risk: Low. Funds Required: 4500 PYUSD.",
-    ];
-
-    for (let i = 0; i < responses.length; i++) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 + Math.random() * 1000)
-      );
-
-      const aiMessage: AIChatMessage = {
-        id: `msg-${Date.now()}-${i}`,
-        role: "assistant",
-        content: responses[i],
-        timestamp: new Date(),
-        reasoning:
-          i === responses.length - 1
-            ? "Supplier Y selected based on proximity (12km), reliability score (94%), and cost efficiency. Route optimized using MeTTa node network to avoid conflict zones. Estimated delivery time: 3.2 hours."
-            : undefined,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
+    setNeeds(aidRouteSimulation.getNeeds())
+    
+    const handleNeedsUpdated = (updatedNeeds: Need[]) => {
+      setNeeds(updatedNeeds)
     }
 
-    setIsTyping(false);
-  };
+    aidRouteSimulation.on('needs-updated', handleNeedsUpdated)
+
+    return () => {
+      aidRouteSimulation.off('needs-updated', handleNeedsUpdated)
+    }
+  }, [])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const addMessage = (type: ChatMessage['type'], content: string) => {
+    const newMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      content,
+      timestamp: new Date()
+    }
+    setMessages(prev => [...prev, newMessage])
+    return newMessage.id
+  }
+
+  const updateMessage = (id: string, content: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === id ? { ...msg, content } : msg
+    ))
+  }
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isProcessing) return
+
+    const userMessage = inputMessage.trim()
+    setInputMessage('')
+    addMessage('user', userMessage)
+    setIsProcessing(true)
+
+    // Simulate AI processing
+    const thinkingId = addMessage('ai', 'Processing request...')
+
+    // Check if it's a planning request
+    if (userMessage.toLowerCase().includes('plan') && userMessage.toLowerCase().includes('delivery')) {
+      // Simulate AI planning steps
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      updateMessage(thinkingId, 'Analyzing current needs and available resources...')
+      
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      updateMessage(thinkingId, 'Searching network for available supply nodes...')
+      
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      updateMessage(thinkingId, 'Calculating optimal routes using MeTTa Nodes...')
+      
+      await new Promise(resolve => setTimeout(resolve, 1800))
+      updateMessage(thinkingId, 'Evaluating risk factors and cost efficiency...')
+
+      // Get planning result
+      const openNeeds = needs.filter(n => n.status === 'open')
+      if (openNeeds.length > 0) {
+        const targetNeed = openNeeds[0]
+        try {
+          const planResult = await aidRouteSimulation.planMission(targetNeed.id)
+          setCurrentPlan(planResult)
+          
+          updateMessage(thinkingId, `✅ Mission Plan Generated
+
+**Target**: ${targetNeed.location} - ${targetNeed.item} (${targetNeed.quantity} units)
+**Optimal Supplier**: ${planResult.supplier}
+**Route Strategy**: ${planResult.route}
+**Risk Assessment**: ${planResult.risk}
+**Funds Required**: $${planResult.funds.toLocaleString()} PYUSD
+
+Mission is ready for approval. Use "View MeTTa Reasoning" to see detailed analysis.`)
+
+        } catch (error) {
+          updateMessage(thinkingId, 'Error generating mission plan. Please try again.')
+        }
+      } else {
+        updateMessage(thinkingId, 'No open needs found requiring immediate planning.')
+      }
+    } else if (userMessage.toLowerCase().includes('status') || userMessage.toLowerCase().includes('overview')) {
+      await new Promise(resolve => setTimeout(resolve, 800))
+      const openNeeds = needs.filter(n => n.status === 'open').length
+      const criticalNeeds = needs.filter(n => n.urgency === 'critical' && n.status === 'open').length
+      
+      updateMessage(thinkingId, `📊 Current System Status:
+
+• **Open Needs**: ${openNeeds} locations requiring assistance
+• **Critical Priority**: ${criticalNeeds} urgent interventions needed
+• **Network Status**: All MeTTa nodes operational
+• **Planning Capacity**: Ready for new mission optimization
+
+Available commands:
+- "Plan delivery for [location]" - Generate optimized mission plan
+- "Show critical needs" - Display highest priority requirements
+- "Analyze supply chain" - Review network efficiency`)
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      updateMessage(thinkingId, `I can help optimize humanitarian logistics missions. Try these commands:
+
+• **"Plan delivery for Camp Beta"** - Generate optimized mission plan
+• **"Status overview"** - View current system status  
+• **"Show critical needs"** - Display urgent requirements
+
+I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximum efficiency.`)
+    }
+
+    setIsProcessing(false)
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
 
   const handleApproveMission = () => {
-    const newMessage: AIChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: "assistant",
-      content:
-        "Mission approved and funds locked. New mission #044 added to Operations queue.",
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, newMessage]);
-  };
+    if (currentPlan) {
+      addMessage('system', `✅ Mission approved and funds locked. New mission added to Operations queue.`)
+      setCurrentPlan(null)
+    }
+  }
 
-  const formatTime = (timestamp: Date) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatTimestamp = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">AI Planning Center</h1>
-          <p className="text-slate-400 mt-1">
-            Collaborate with autonomous AI agents to optimize humanitarian
-            logistics
-          </p>
-        </div>
-        <div className="flex items-center space-x-2 text-sm text-slate-400">
-          <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
-          <span>ASI:One AI Agent Online</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="p-6 h-full flex flex-col">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
         {/* Chat Interface */}
-        <div className="lg:col-span-3 bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-          <div className="flex items-center space-x-2 mb-4">
-            <Brain className="w-5 h-5 text-purple-400" />
-            <h3 className="text-lg font-semibold text-white">
-              AI Agent Collaboration
-            </h3>
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl flex flex-col">
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <Brain className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h3 className="font-semibold">AI Planning Agent</h3>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>ASI:One Neural Network Active</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Chat Messages */}
-          <div className="h-96 overflow-y-auto space-y-4 mb-4 pr-2">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={cn(
+                  "flex gap-3",
+                  message.type === 'user' && "justify-end"
+                )}
               >
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
-                    message.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-700 text-slate-200"
-                  }`}
-                >
-                  <p className="text-sm">{message.content}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs opacity-70">
-                      {formatTime(message.timestamp)}
-                    </span>
-                    {message.reasoning && (
-                      <button
-                        onClick={() =>
-                          setShowReasoning(
-                            showReasoning === message.id ? null : message.id
-                          )
-                        }
-                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>View MeTTa Reasoning</span>
-                      </button>
-                    )}
+                {message.type !== 'user' && (
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                    message.type === 'ai' && "bg-primary text-primary-foreground",
+                    message.type === 'system' && "bg-green-500 text-white"
+                  )}>
+                    {message.type === 'ai' && <Brain className="w-4 h-4" />}
+                    {message.type === 'system' && <Zap className="w-4 h-4" />}
+                  </div>
+                )}
+                
+                <div className={cn(
+                  "max-w-[80%] rounded-lg p-3",
+                  message.type === 'user' && "bg-primary text-primary-foreground ml-auto",
+                  message.type === 'ai' && "bg-secondary",
+                  message.type === 'system' && "bg-green-500/10 border border-green-500/20"
+                )}>
+                  <div className="whitespace-pre-wrap text-sm">
+                    {message.content}
+                  </div>
+                  <div className="text-xs opacity-70 mt-1">
+                    {formatTimestamp(message.timestamp)}
                   </div>
                 </div>
               </div>
             ))}
-
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-slate-700 text-slate-200 px-4 py-3 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                      <div
-                        className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      />
-                      <div
-                        className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      />
-                    </div>
-                    <span className="text-sm">AI Agent thinking...</span>
+            
+            {isProcessing && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                  <Loader2 className="w-4 h-4 text-primary-foreground animate-spin" />
+                </div>
+                <div className="bg-secondary rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>AI agent thinking...</span>
                   </div>
                 </div>
               </div>
             )}
+            
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-              placeholder="Enter your planning request..."
-              className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isTyping}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* AI Reasoning Panel */}
-        <div className="space-y-6">
-          {showReasoning && (
-            <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                <Brain className="w-5 h-5 text-purple-400" />
-                <span>MeTTa Reasoning</span>
-              </h3>
-              <div className="text-sm text-slate-300 space-y-3">
-                <p>{messages.find((m) => m.id === showReasoning)?.reasoning}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Mission Approval Panel */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-              <Lock className="w-5 h-5 text-green-400" />
-              <span>Mission Control</span>
-            </h3>
-            <div className="space-y-4">
-              <div className="bg-slate-700/30 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-white mb-2">
-                  Proposed Mission
-                </h4>
-                <div className="space-y-2 text-sm text-slate-300">
-                  <p>Destination: Camp Beta</p>
-                  <p>Supplier: Y (Optimal)</p>
-                  <p>Route Risk: Low</p>
-                  <p>Funds Required: $4,500 PYUSD</p>
-                  <p>ETA: 3.2 hours</p>
-                </div>
-              </div>
+          <div className="p-4 border-t border-border">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask AI to plan a delivery..."
+                className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={isProcessing}
+              />
               <button
-                onClick={handleApproveMission}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                onClick={handleSendMessage}
+                disabled={isProcessing || !inputMessage.trim()}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Lock className="w-4 h-4" />
-                <span>Approve & Lock Funds</span>
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* AI Status */}
-          <div className="bg-slate-800/30 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-              <Zap className="w-5 h-5 text-purple-400" />
-              <span>AI Agent Status</span>
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Status:</span>
-                <span className="text-green-400 font-mono">ONLINE</span>
+        {/* Mission Planning Panel */}
+        <div className="space-y-6">
+          {/* Current Plan */}
+          {currentPlan && (
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                Mission Ready
+              </h3>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">${currentPlan.funds.toLocaleString()} PYUSD</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Route className="w-4 h-4 text-blue-500" />
+                  <span>{currentPlan.route}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-yellow-500" />
+                  <span>Risk: {currentPlan.risk}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">MeTTa Nodes:</span>
-                <span className="text-purple-400 font-mono">847 Active</span>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setShowReasoning(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>View MeTTa Reasoning</span>
+                </button>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Processing Power:</span>
-                <span className="text-blue-400 font-mono">94%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Last Update:</span>
-                <span className="text-slate-300 font-mono">2s ago</span>
-              </div>
+
+              <button
+                onClick={handleApproveMission}
+                className="w-full mt-3 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+              >
+                Approve & Lock Funds
+              </button>
+            </div>
+          )}
+
+          {/* Quick Commands */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4">Quick Commands</h3>
+            <div className="space-y-2">
+              {[
+                "Plan delivery for Camp Beta",
+                "Status overview", 
+                "Show critical needs"
+              ].map((command) => (
+                <button
+                  key={command}
+                  onClick={() => {
+                    setInputMessage(command)
+                    setTimeout(handleSendMessage, 100)
+                  }}
+                  className="w-full text-left px-3 py-2 bg-secondary/50 hover:bg-secondary rounded-lg transition-colors text-sm"
+                  disabled={isProcessing}
+                >
+                  {command}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Open Needs Summary */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4">Open Needs</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {needs.filter(n => n.status === 'open').slice(0, 5).map((need) => (
+                <div key={need.id} className="p-2 bg-secondary/50 rounded text-sm">
+                  <div className="font-medium">{need.location}</div>
+                  <div className="text-muted-foreground">{need.item} • {need.quantity}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
+
+      {/* MeTTa Reasoning Modal */}
+      {showReasoning && currentPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">MeTTa Neural Reasoning Analysis</h3>
+              <button
+                onClick={() => setShowReasoning(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4 text-sm">
+              <div className="p-4 bg-secondary/50 rounded-lg">
+                <h4 className="font-medium mb-2">Decision Logic:</h4>
+                <p>{currentPlan.reasoning}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <h5 className="font-medium text-blue-600 mb-1">Supply Chain Analysis</h5>
+                  <p className="text-xs">Real-time inventory levels, supplier reliability scores, and historical performance metrics evaluated.</p>
+                </div>
+                
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <h5 className="font-medium text-green-600 mb-1">Route Optimization</h5>
+                  <p className="text-xs">Multi-factor pathfinding considering terrain, weather, conflict zones, and fuel efficiency.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }
