@@ -118,16 +118,16 @@ export function LandingPage({ onEnterDashboard }: LandingPageProps) {
             {/* Logo and Branding */}
             <div className="flex flex-col items-center space-y-6">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4">
-                  <Image
-                    src="/logo.png"
-                    alt="AidRoute Logo"
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 object-contain"
-                    priority
-                  />
-                </div>
+                {/* <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-2xl p-4"> */}
+                <Image
+                  src="/logo.png"
+                  alt="AidRoute Logo"
+                  width={48}
+                  height={48}
+                  className="w-20 h-20 object-contain"
+                  priority
+                />
+                {/* </div> */}
                 <div className="text-left">
                   <h1 className="text-5xl lg:text-6xl font-display font-bold tracking-tight">
                     AidRoute

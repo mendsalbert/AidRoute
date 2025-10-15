@@ -94,22 +94,6 @@ export function HomeView({ onNavigate }: HomeViewProps) {
   return (
     <div className="p-6 space-y-8">
       {/* Hero Section */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-            <Globe className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-bold">
-              Coordinating Aid. Autonomously.
-            </h1>
-            <p className="text-lg text-muted-foreground mt-2">
-              AI agents optimize humanitarian logistics in real-time, ensuring
-              rapid response and transparent delivery
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Live Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
