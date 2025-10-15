@@ -1,0 +1,23 @@
+# Fetch.ai uAgents Framework
+uagents==0.15.0
+uagents-ai-engine==0.6.0
+
+# MeTTa Integration (SingularityNET)
+hyperon==0.1.15
+
+# Web3 & Blockchain
+web3==7.7.0
+eth-account==0.13.4
+
+# AI & NLP
+openai==1.59.5
+anthropic==0.42.0
+
+# Data Processing
+requests==2.32.3
+python-dotenv==1.0.1
+
+# Utilities
+pydantic==2.10.5
+aiohttp==3.11.11
+
