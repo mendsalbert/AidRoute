@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { aidRouteSimulation, type AuditRecord } from "@/lib/simulation";
+import {
+  realTimeDisasterService,
+  type AuditRecord,
+} from "@/lib/real-time-disasters";
 import {
   Shield,
   Search,
@@ -30,16 +33,16 @@ export function AuditView() {
   );
 
   useEffect(() => {
-    setAuditRecords(aidRouteSimulation.getAuditRecords());
+    setAuditRecords(realTimeDisasterService.getAuditRecords());
 
     const handleAuditUpdated = (updatedRecords: AuditRecord[]) => {
       setAuditRecords(updatedRecords);
     };
 
-    aidRouteSimulation.on("audit-updated", handleAuditUpdated);
+    realTimeDisasterService.on("audit-updated", handleAuditUpdated);
 
     return () => {
-      aidRouteSimulation.off("audit-updated", handleAuditUpdated);
+      realTimeDisasterService.off("audit-updated", handleAuditUpdated);
     };
   }, []);
 

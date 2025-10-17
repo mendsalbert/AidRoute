@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { aidRouteSimulation, type Mission, type Need } from "@/lib/simulation";
+import { realTimeDisasterService } from "@/lib/real-time-disasters";
 import {
   Activity,
   Map,
@@ -14,79 +14,103 @@ import {
   MapPin,
   TrendingUp,
   Zap,
+  ExternalLink,
 } from "lucide-react";
 
 export function OperationsView() {
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [needs, setNeeds] = useState<Need[]>([]);
-  const [recentDeliveries, setRecentDeliveries] = useState<string[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
 
   useEffect(() => {
     // Initial load
-    setMissions(aidRouteSimulation.getMissions());
-    setNeeds(aidRouteSimulation.getNeeds());
+    setEvents(realTimeDisasterService.getEvents());
 
     // Set up listeners
-    const handleMissionsUpdated = (updatedMissions: Mission[]) => {
-      setMissions(updatedMissions);
+    const handleEventsUpdated = (updatedEvents: any[]) => {
+      setEvents(updatedEvents);
     };
 
-    const handleNeedsUpdated = (updatedNeeds: Need[]) => {
-      setNeeds(updatedNeeds);
-    };
-
-    const handleMissionCompleted = ({ mission }: any) => {
-      setRecentDeliveries((prev) => [
-        `${mission.destination} - ${mission.assignedResources[0]} delivered successfully`,
-        ...prev.slice(0, 4),
-      ]);
-    };
-
-    aidRouteSimulation.on("missions-updated", handleMissionsUpdated);
-    aidRouteSimulation.on("needs-updated", handleNeedsUpdated);
-    aidRouteSimulation.on("mission-completed", handleMissionCompleted);
+    realTimeDisasterService.on("events-updated", handleEventsUpdated);
 
     return () => {
-      aidRouteSimulation.off("missions-updated", handleMissionsUpdated);
-      aidRouteSimulation.off("needs-updated", handleNeedsUpdated);
-      aidRouteSimulation.off("mission-completed", handleMissionCompleted);
+      realTimeDisasterService.off("events-updated", handleEventsUpdated);
     };
   }, []);
 
-  const activeMissions = missions.filter((m) =>
-    ["planning", "en-route", "delivering"].includes(m.status)
-  );
-  const criticalNeeds = needs.filter(
-    (n) => n.urgency === "critical" && n.status === "open"
-  );
-  const averageResponseTime = Math.floor(Math.random() * 180) + 120; // Simulated
+  const criticalEvents = events.filter((e) => e.urgency === "critical");
+  const highEvents = events.filter((e) => e.urgency === "high");
 
-  const getStatusColor = (status: Mission["status"]) => {
-    switch (status) {
-      case "planning":
-        return "text-yellow-500";
-      case "en-route":
-        return "text-blue-500";
-      case "delivering":
-        return "text-purple-500";
-      case "completed":
-        return "text-green-500";
+  const typeToEmoji = (type: string) => {
+    switch (type) {
+      case "EQ":
+        return "🌍";
+      case "FL":
+        return "💧";
+      case "VO":
+        return "🌋";
+      case "WF":
+        return "🔥";
+      case "TC":
+        return "🌪️";
+      case "DR":
+        return "🏜️";
       default:
-        return "text-gray-500";
+        return "📍";
     }
   };
 
-  const getUrgencyColor = (urgency: Need["urgency"]) => {
+  const urgencyColor = (urgency: string) => {
     switch (urgency) {
       case "critical":
-        return "text-red-500 bg-red-500/10 border-red-500/20";
+        return "text-red-600 bg-red-500/10 border-red-500/20";
       case "high":
-        return "text-orange-500 bg-orange-500/10 border-orange-500/20";
+        return "text-orange-600 bg-orange-500/10 border-orange-500/20";
       case "medium":
-        return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
-      case "low":
-        return "text-green-500 bg-green-500/10 border-green-500/20";
+        return "text-yellow-600 bg-yellow-500/10 border-yellow-500/20";
+      default:
+        return "text-green-600 bg-green-500/10 border-green-500/20";
     }
+  };
+
+  const typeColor = (type: string) => {
+    switch (type) {
+      case "EQ":
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "FL":
+        return "bg-cyan-500/10 text-cyan-600 border-cyan-500/20";
+      case "VO":
+        return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "WF":
+        return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      case "TC":
+        return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
+      default:
+        return "bg-muted text-foreground border-border";
+    }
+  };
+
+  const sanitizeLink = (url?: string) => {
+    if (!url) return "";
+    const decoded = url.trim().replace(/&amp;/g, "&");
+    try {
+      const u = new URL(decoded, "https://www.gdacs.org");
+      return u.href;
+    } catch {
+      return decoded;
+    }
+  };
+
+  const timeFrom = (pubDate?: string) => {
+    if (!pubDate) return "";
+    const now = Date.now();
+    const then = new Date(pubDate).getTime();
+    const diffMin = Math.max(0, Math.round((now - then) / 60000));
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const hrs = Math.round(diffMin / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.round(hrs / 24);
+    return `${days}d ago`;
   };
 
   return (
@@ -96,8 +120,8 @@ export function OperationsView() {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold">{activeMissions.length}</p>
-              <p className="text-sm text-muted-foreground">Active Missions</p>
+              <p className="text-2xl font-bold">{events.length}</p>
+              <p className="text-sm text-muted-foreground">Active Alerts</p>
             </div>
             <Activity className="w-8 h-8 text-blue-500" />
           </div>
@@ -106,8 +130,8 @@ export function OperationsView() {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold">{criticalNeeds.length}</p>
-              <p className="text-sm text-muted-foreground">Critical Needs</p>
+              <p className="text-2xl font-bold">{criticalEvents.length}</p>
+              <p className="text-sm text-muted-foreground">Critical Events</p>
             </div>
             <AlertTriangle className="w-8 h-8 text-red-500" />
           </div>
@@ -116,33 +140,33 @@ export function OperationsView() {
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold">
-                {missions.filter((m) => m.status === "completed").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Fulfilled Today</p>
+              <p className="text-2xl font-bold">{highEvents.length}</p>
+              <p className="text-sm text-muted-foreground">High Priority</p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-500" />
+            <Zap className="w-8 h-8 text-orange-500" />
           </div>
         </div>
 
         <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold">{averageResponseTime}m</p>
-              <p className="text-sm text-muted-foreground">Avg Response Time</p>
+              <p className="text-2xl font-bold">
+                {events.length > 0 ? "Live" : "--"}
+              </p>
+              <p className="text-sm text-muted-foreground">GDACS Status</p>
             </div>
-            <Clock className="w-8 h-8 text-purple-500" />
+            <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Simulated Map Interface */}
+        {/* Live Disaster Map */}
         <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Map className="w-5 h-5" />
-              Live Mission Tracking
+              Live Disaster Map
             </h3>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -150,7 +174,7 @@ export function OperationsView() {
             </div>
           </div>
 
-          {/* Simulated Map Grid */}
+          {/* Map visualization with event markers */}
           <div className="bg-secondary/20 rounded-lg p-4 h-80 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5"></div>
 
@@ -172,193 +196,218 @@ export function OperationsView() {
               ))}
             </div>
 
-            {/* Mission markers */}
-            {activeMissions.slice(0, 6).map((mission, index) => (
-              <div
-                key={mission.id}
-                className="absolute transition-all duration-1000 ease-in-out"
-                style={{
-                  left: `${20 + index * 12 + mission.progress * 0.3}%`,
-                  top: `${
-                    15 + index * 10 + Math.sin(Date.now() / 2000 + index) * 5
-                  }%`,
-                }}
-              >
-                <div
-                  className={cn(
-                    "w-3 h-3 rounded-full border-2 border-white shadow-lg animate-pulse",
-                    mission.status === "planning" && "bg-yellow-500",
-                    mission.status === "en-route" && "bg-blue-500",
-                    mission.status === "delivering" && "bg-purple-500"
-                  )}
-                ></div>
-                <div className="absolute -top-8 -left-12 bg-card border border-border rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg">
-                  Mission {mission.id.slice(-3)}
-                </div>
-              </div>
-            ))}
+            {/* Event markers distributed on map */}
+            {events.slice(0, 8).map((event, index) => {
+              const x = 10 + ((index * 73) % 80);
+              const y = 10 + ((index * 59) % 70);
+              const urgencyColor =
+                event.urgency === "critical"
+                  ? "bg-red-500"
+                  : event.urgency === "high"
+                  ? "bg-orange-500"
+                  : event.urgency === "medium"
+                  ? "bg-yellow-500"
+                  : "bg-green-500";
 
-            {/* Route lines */}
-            {activeMissions.slice(0, 3).map((mission, index) => (
-              <svg
-                key={`route-${mission.id}`}
-                className="absolute inset-0 w-full h-full"
-              >
-                <path
-                  d={`M ${20 + index * 12}% ${20 + index * 10}% Q ${
-                    50 + index * 5
-                  }% ${30 + index * 8}% ${75 + index * 3}% ${25 + index * 12}%`}
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  fill="none"
-                  className="text-primary/30 animate-pulse"
-                  strokeDasharray="4,4"
-                />
-              </svg>
-            ))}
+              return (
+                <div
+                  key={event.link}
+                  className="absolute transition-all duration-300 cursor-pointer group"
+                  style={{ left: `${x}%`, top: `${y}%` }}
+                  onClick={() => setSelectedEvent(event)}
+                >
+                  <div
+                    className={cn(
+                      "w-4 h-4 rounded-full border-2 border-white shadow-lg",
+                      urgencyColor,
+                      "group-hover:scale-125 transition-transform"
+                    )}
+                  ></div>
+                  <div className="absolute -top-8 -left-16 bg-card border border-border rounded px-2 py-1 text-xs whitespace-nowrap shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                    {event.typeName}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="flex items-center justify-between mt-4 text-sm">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span>Planning</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>En Route</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                <span>Delivering</span>
-              </div>
+          <div className="flex flex-wrap items-center gap-4 mt-4 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Critical</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span>High</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Medium</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Low</span>
             </div>
           </div>
         </div>
 
-        {/* Active Missions List */}
+        {/* Event Details Panel */}
         <div className="bg-card border border-border rounded-xl p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Truck className="w-5 h-5" />
-            Active Missions
+            <Package className="w-5 h-5" />
+            Selected Event
           </h3>
 
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {activeMissions.slice(0, 8).map((mission) => (
-              <div key={mission.id} className="p-3 bg-secondary/50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm">
-                      #{mission.id.slice(-6)}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-sm font-medium",
-                        getStatusColor(mission.status)
-                      )}
-                    >
-                      {mission.status}
-                    </span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {mission.progress}% complete
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <MapPin className="w-4 h-4" />
-                  <span>
-                    {mission.location} → {mission.destination}
-                  </span>
-                </div>
-
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-1000"
-                    style={{ width: `${mission.progress}%` }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Needs Feed */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Incoming Needs
-            </h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Zap className="w-4 h-4 text-green-500" />
-              <span>Live Feed</span>
-            </div>
-          </div>
-
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {needs.slice(0, 6).map((need) => (
-              <div key={need.id} className="p-3 bg-secondary/50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
+          {selectedEvent ? (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">
+                  Type & Urgency
+                </p>
+                <div className="flex gap-2">
                   <span
                     className={cn(
                       "px-2 py-1 rounded-full text-xs font-medium border",
-                      getUrgencyColor(need.urgency)
+                      typeColor(selectedEvent.eventType)
                     )}
                   >
-                    {need.urgency}
+                    {selectedEvent.typeName}
                   </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(need.timestamp).toLocaleTimeString()}
+                  <span
+                    className={cn(
+                      "px-2 py-1 rounded-full text-xs font-medium border",
+                      urgencyColor(selectedEvent.urgency)
+                    )}
+                  >
+                    {selectedEvent.urgency}
                   </span>
-                </div>
-
-                <div className="text-sm">
-                  <p className="font-medium">{need.item}</p>
-                  <p className="text-muted-foreground">
-                    {need.location} • Qty: {need.quantity}
-                  </p>
                 </div>
               </div>
-            ))}
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Location</p>
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="w-4 h-4" />
+                  <span className="font-medium">{selectedEvent.location}</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Severity</p>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "h-2 flex-1 rounded",
+                        i < selectedEvent.severity
+                          ? "bg-red-500"
+                          : "bg-gray-300"
+                      )}
+                    ></div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedEvent.severity}/5
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">
+                  Alert Title
+                </p>
+                <p className="text-sm line-clamp-3">{selectedEvent.title}</p>
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Published</p>
+                <p className="text-sm">{timeFrom(selectedEvent.pubDate)}</p>
+              </div>
+
+              {selectedEvent.link && (
+                <a
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline mt-2"
+                  href={sanitizeLink(selectedEvent.link)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View Full Report <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>Click on a disaster marker to view details</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Live Events Feed */}
+      <div className="bg-card border border-border rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Zap className="w-5 h-5" />
+            Live System Activity Feed
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Real-time</span>
           </div>
         </div>
 
-        {/* Recent Deliveries Feed */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Recent Deliveries
-          </h3>
-
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {recentDeliveries.length > 0 ? (
-              recentDeliveries.map((delivery, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm",
-                    "animate-in slide-in-from-top-1 duration-500"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span>{delivery}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {index === 0 ? "Just now" : `${(index + 1) * 3}m ago`}
-                    </span>
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {events.length > 0 ? (
+            events.slice(0, 10).map((event) => (
+              <div
+                key={event.link}
+                className={cn(
+                  "p-3 bg-secondary/50 rounded-lg border cursor-pointer hover:bg-secondary transition-colors",
+                  event.urgency === "critical"
+                    ? "border-red-500/30 bg-red-500/5"
+                    : "border-border"
+                )}
+                onClick={() => setSelectedEvent(event)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">{typeToEmoji(event.eventType)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-xs font-medium border",
+                          typeColor(event.eventType)
+                        )}
+                      >
+                        {event.typeName}
+                      </span>
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-xs font-medium border",
+                          urgencyColor(event.urgency)
+                        )}
+                      >
+                        {event.urgency}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {timeFrom(event.pubDate)}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{event.location}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                      {event.title}
+                    </p>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Monitoring deliveries...</p>
               </div>
-            )}
-          </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p>No active alerts</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

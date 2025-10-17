@@ -1,11 +1,7 @@
 """
 AidRoute AI Agents Package
-
-Autonomous humanitarian logistics coordination using:
-- Fetch.ai uAgents
-- SingularityNET MeTTa
-- PYUSD Smart Contracts
+Humanitarian Logistics Coordination with AI
 """
 
-__version__ = "1.0.0"
+__version__ = "0.1.0"
 

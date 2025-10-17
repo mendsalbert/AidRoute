@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { aidRouteSimulation, type SystemStats } from "@/lib/simulation";
+import { realTimeDisasterService } from "@/lib/real-time-disasters";
 import {
   Activity,
   AlertTriangle,
@@ -13,6 +13,8 @@ import {
   Zap,
   Users,
   Map,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
 
 interface HomeViewProps {
@@ -20,65 +22,69 @@ interface HomeViewProps {
 }
 
 export function HomeView({ onNavigate }: HomeViewProps) {
-  const [stats, setStats] = useState<SystemStats>({
+  const [stats, setStats] = useState<any>({
     activeMissions: 0,
     urgentNeeds: 0,
     verifiedDeliveries: 0,
     totalFundsDeployed: 0,
   });
   const [recentActivity, setRecentActivity] = useState<string[]>([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
 
   useEffect(() => {
     // Initial load
-    setStats(aidRouteSimulation.getSystemStats());
+    setStats({
+      activeMissions: 0,
+      urgentNeeds: 0,
+      verifiedDeliveries: 0,
+      totalFundsDeployed: 0,
+    });
 
     // Set up listeners for real-time updates
-    const updateStats = () => setStats(aidRouteSimulation.getSystemStats());
+    const updateStats = (incoming?: any[]) => {
+      const events =
+        incoming && Array.isArray(incoming)
+          ? incoming
+          : realTimeDisasterService.getEvents();
 
-    const handleNeedAdded = (need: any) => {
-      setRecentActivity((prev) => [
-        `New Need Registered: ${need.location} – ${need.item}`,
-        ...prev.slice(0, 4),
-      ]);
-    };
+      // Update headline stats derived from raw events
+      setStats({
+        activeMissions: 0,
+        urgentNeeds: events.filter((e: any) => e.urgency === "critical").length,
+        verifiedDeliveries: 0,
+        totalFundsDeployed: 0,
+      });
 
-    const handleMissionCompleted = ({ mission }: any) => {
-      setRecentActivity((prev) => [
-        `Mission #${mission.id.slice(-3)} Confirmed – Delivered to ${
-          mission.destination
-        }`,
-        ...prev.slice(0, 4),
-      ]);
-    };
+      // Keep the most recent 6 events for the activity view
+      setRecentEvents(events.slice(0, 6));
 
-    const handleMissionStatus = (mission: any) => {
-      if (mission.status === "en-route") {
-        setRecentActivity((prev) => [
-          `Mission #${mission.id.slice(-3)} En Route – ${mission.destination}`,
-          ...prev.slice(0, 4),
-        ]);
-      }
+      // Maintain compatibility with previous simple feed (optional)
+      const latestActivity = events.slice(0, 6).map((e: any) => {
+        const badge =
+          e.urgency === "critical"
+            ? "🔴"
+            : e.urgency === "high"
+            ? "🟠"
+            : e.urgency === "medium"
+            ? "🟡"
+            : "🟢";
+        return `${badge} ${e.typeName} – ${e.location} • ${e.title}`;
+      });
+      setRecentActivity(latestActivity);
     };
 
     // Subscribe to events
-    aidRouteSimulation.on("missions-updated", updateStats);
-    aidRouteSimulation.on("needs-updated", updateStats);
-    aidRouteSimulation.on("audit-updated", updateStats);
-    aidRouteSimulation.on("need-added", handleNeedAdded);
-    aidRouteSimulation.on("mission-completed", handleMissionCompleted);
-    aidRouteSimulation.on("mission-status-changed", handleMissionStatus);
+    realTimeDisasterService.on("events-updated", updateStats);
 
-    // Update stats every 5 seconds
-    const interval = setInterval(updateStats, 5000);
+    // Update stats every 10 seconds
+    const interval = setInterval(() => updateStats(), 10000);
+
+    // Initial populate
+    updateStats();
 
     return () => {
       clearInterval(interval);
-      aidRouteSimulation.off("missions-updated", updateStats);
-      aidRouteSimulation.off("needs-updated", updateStats);
-      aidRouteSimulation.off("audit-updated", updateStats);
-      aidRouteSimulation.off("need-added", handleNeedAdded);
-      aidRouteSimulation.off("mission-completed", handleMissionCompleted);
-      aidRouteSimulation.off("mission-status-changed", handleMissionStatus);
+      realTimeDisasterService.off("events-updated", updateStats);
     };
   }, []);
 
@@ -91,10 +97,62 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     }).format(amount);
   };
 
+  const urgencyStyles = (urgency: string) => {
+    switch (urgency) {
+      case "critical":
+        return "text-red-600 bg-red-500/10 border-red-500/20";
+      case "high":
+        return "text-orange-600 bg-orange-500/10 border-orange-500/20";
+      case "medium":
+        return "text-yellow-600 bg-yellow-500/10 border-yellow-500/20";
+      default:
+        return "text-green-600 bg-green-500/10 border-green-500/20";
+    }
+  };
+
+  const typeStyles = (type: string) => {
+    switch (type) {
+      case "EQ":
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+      case "FL":
+        return "bg-cyan-500/10 text-cyan-600 border-cyan-500/20";
+      case "VO":
+        return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "WF":
+        return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      case "TC":
+        return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
+      default:
+        return "bg-muted text-foreground border-border";
+    }
+  };
+
+  const timeFrom = (pubDate?: string) => {
+    if (!pubDate) return "";
+    const now = Date.now();
+    const then = new Date(pubDate).getTime();
+    const diffMin = Math.max(0, Math.round((now - then) / 60000));
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const hrs = Math.round(diffMin / 60);
+    return `${hrs}h ago`;
+  };
+
+  const sanitizeLink = (url?: string) => {
+    if (!url) return "";
+    // Decode common HTML entities (minimal)
+    const decoded = url.trim().replace(/&amp;/g, "&");
+    // Ensure absolute URL stays absolute
+    try {
+      const u = new URL(decoded, "https://www.gdacs.org");
+      return u.href;
+    } catch {
+      return decoded;
+    }
+  };
+
   return (
     <div className="p-6 space-y-8">
-      {/* Hero Section */}
-
       {/* Live Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-card border border-border rounded-xl p-6 space-y-3">
@@ -115,7 +173,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
           </div>
           <div>
             <p className="text-2xl font-bold">{stats.urgentNeeds}</p>
-            <p className="text-sm text-muted-foreground">Urgent Needs</p>
+            <p className="text-sm text-muted-foreground">Critical Alerts</p>
           </div>
         </div>
 
@@ -158,22 +216,69 @@ export function HomeView({ onNavigate }: HomeViewProps) {
         </div>
 
         <div className="space-y-3">
-          {recentActivity.length > 0 ? (
-            recentActivity.map((activity, index) => (
+          {recentEvents.length > 0 ? (
+            recentEvents.map((e, index) => (
               <div
-                key={index}
+                key={`${e.link}-${index}`}
                 className={cn(
-                  "p-3 bg-secondary/50 rounded-lg text-sm",
+                  "p-3 bg-secondary/50 rounded-lg text-sm border border-border",
                   "animate-in slide-in-from-top-1 duration-500",
-                  index === 0 && "bg-primary/10 border border-primary/20"
+                  index === 0 && "bg-primary/10 border-primary/20"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <span>{activity}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    {index === 0 ? "Just now" : `${(index + 1) * 2}m ago`}
-                  </span>
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "w-2.5 h-2.5 rounded-full mt-1.5",
+                      e.urgency === "critical" && "bg-red-500",
+                      e.urgency === "high" && "bg-orange-500",
+                      e.urgency === "medium" && "bg-yellow-500",
+                      e.urgency === "low" && "bg-green-500"
+                    )}
+                  ></div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-xs font-medium border",
+                          typeStyles(e.eventType)
+                        )}
+                      >
+                        {e.typeName}
+                      </span>
+                      <span
+                        className={cn(
+                          "px-2 py-0.5 rounded-full text-xs font-medium border",
+                          urgencyStyles(e.urgency)
+                        )}
+                      >
+                        {e.urgency}
+                      </span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3" />
+                        <span className="truncate max-w-[160px]">
+                          {e.location}
+                        </span>
+                      </div>
+                      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
+                        {timeFrom(e.pubDate)}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 text-sm line-clamp-2">{e.title}</div>
+
+                    {e.link && (
+                      <a
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        href={sanitizeLink(e.link)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View on GDACS <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             ))

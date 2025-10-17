@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LandingPage } from "@/components/landing-page";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { HomeView } from "@/components/home-view";

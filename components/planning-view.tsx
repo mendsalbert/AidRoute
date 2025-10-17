@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { aidRouteSimulation, type Need } from "@/lib/simulation";
+import {
+  realTimeDisasterService,
+  type RawDisasterEvent,
+} from "@/lib/real-time-disasters";
 import {
   Brain,
   Send,
@@ -14,6 +17,8 @@ import {
   Route,
   Shield,
   Zap,
+  Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 
 interface ChatMessage {
@@ -21,24 +26,37 @@ interface ChatMessage {
   type: "user" | "ai" | "system";
   content: string;
   timestamp: Date;
+  mission_data?: any;
+  suggestions?: string[];
 }
 
 interface PlanningResult {
-  supplier: string;
-  route: string;
-  risk: string;
-  funds: number;
+  location: string;
+  supplies: Array<{
+    name: string;
+    quantity: number;
+    code: string;
+  }>;
+  estimated_cost: number;
+  estimated_beneficiaries: number;
+  estimated_timeline: string;
+  efficiency_score: number;
   reasoning: string;
+  recommendation: string;
+  risk_factors?: string[];
 }
 
 export function PlanningView() {
-  const [needs, setNeeds] = useState<Need[]>([]);
+  const [disasters, setDisasters] = useState<RawDisasterEvent[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       type: "system",
       content:
-        "AI Planning Agent Online. Ready to optimize humanitarian logistics.",
+        "Agentverse AI Agent Online\n\n" +
+        "Powered by: Fetch.ai uAgents • SingularityNET MeTTa • ASI:One • Agentverse\n\n" +
+        "Agent Address: agent1qfm2yn76gvqfvf04qh7k9x78hfrm33axpt35h4g675fvstsxl3npvnpc7vu\n\n" +
+        "Ready to optimize humanitarian logistics with real-time GDACS data.",
       timestamp: new Date(),
     },
   ]);
@@ -46,35 +64,193 @@ export function PlanningView() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReasoning, setShowReasoning] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<PlanningResult | null>(null);
+  const [aiAnalyses, setAiAnalyses] = useState<any[]>([]);
+  const [sessionId, setSessionId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Initialize session ID on mount
   useEffect(() => {
-    setNeeds(aidRouteSimulation.getNeeds());
+    setSessionId(
+      `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    );
+  }, []);
 
-    const handleNeedsUpdated = (updatedNeeds: Need[]) => {
-      setNeeds(updatedNeeds);
+  useEffect(() => {
+    // Fetch disasters on mount
+    fetchAndAnalyzeDisasters();
+
+    // Subscribe to disaster updates
+    const handleEventsUpdated = (events: RawDisasterEvent[]) => {
+      setDisasters(events);
+      // Auto-analyze new disasters
+      if (events.length > 0) {
+        analyzeDisastersWithAI(events);
+      }
     };
 
-    aidRouteSimulation.on("needs-updated", handleNeedsUpdated);
+    realTimeDisasterService.on("events-updated", handleEventsUpdated);
 
     return () => {
-      aidRouteSimulation.off("needs-updated", handleNeedsUpdated);
+      realTimeDisasterService.off("events-updated", handleEventsUpdated);
     };
   }, []);
+
+  const fetchAndAnalyzeDisasters = async () => {
+    try {
+      const events = realTimeDisasterService.getEvents();
+      setDisasters(events);
+
+      if (events.length > 0) {
+        await analyzeDisastersWithAI(events);
+      }
+    } catch (error) {
+      console.error("Error fetching disasters:", error);
+    }
+  };
+
+  const analyzeDisastersWithAI = async (events: RawDisasterEvent[]) => {
+    try {
+      console.log("🧠 Analyzing disasters with Agentverse agent...");
+
+      // Add a message to show we're processing
+      addMessage(
+        "system",
+        `Connecting to Agentverse agent…\n` +
+          `This can take up to 2 minutes. Please wait`
+      );
+
+      // Use the chat API to ask the agent to analyze disasters
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "Hello! Can you help me with disaster analysis?",
+          session_id: sessionId,
+          context: {
+            disasters: events,
+            analyses: aiAnalyses,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Analysis error:", errorData);
+
+        if (response.status === 503) {
+          // Network error
+          addMessage(
+            "system",
+            `Network error\n\n` +
+              `Unable to connect to ASI:One API.\n\n` +
+              `Error: ${errorData.message}\n\n` +
+              `To fix:\n` +
+              `1. Check your internet connection\n` +
+              `2. Verify ASI:One API key\n` +
+              `3. Check if Agentverse agent is online`
+          );
+          return;
+        }
+
+        if (response.status === 408) {
+          // Silently stop processing on timeout without verbose error message
+          return;
+        }
+
+        if (response.status === 401) {
+          // API key error
+          addMessage(
+            "system",
+            `API key error\n\n` +
+              `ASI:One API key is missing or invalid.\n\n` +
+              `Error: ${errorData.message}\n\n` +
+              `To fix:\n` +
+              `1. Get API key from https://asi1.ai\n` +
+              `2. Add to .env.local file\n` +
+              `3. Restart the development server`
+          );
+          return;
+        }
+
+        // Generic error with details
+        addMessage(
+          "system",
+          `Analysis error\n\n` +
+            `Status: ${response.status}\n` +
+            `Error: ${errorData.message || "Unknown error"}`
+        );
+        return;
+      }
+
+      const aiResponse = await response.json();
+      console.log(`Disaster analysis complete via Agentverse agent`);
+
+      // Add the AI response as a message
+      addMessage(
+        "ai",
+        aiResponse.message,
+        aiResponse.mission_data,
+        aiResponse.suggestions
+      );
+    } catch (error) {
+      console.error("AI analysis error:", error);
+      addMessage(
+        "system",
+        `Analysis error\n\n` +
+          `Failed to analyze disasters via Agentverse agent.\n\n` +
+          `Error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }\n\n` +
+          `Please ensure your ASI:One API key is set in \`.env.local\``
+      );
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (type: ChatMessage["type"], content: string) => {
+  const addMessage = (
+    type: ChatMessage["type"],
+    content: string,
+    mission_data?: any,
+    suggestions?: string[]
+  ) => {
     const newMessage: ChatMessage = {
       id: Math.random().toString(36).substr(2, 9),
       type,
       content,
       timestamp: new Date(),
+      mission_data,
+      suggestions,
     };
     setMessages((prev) => [...prev, newMessage]);
     return newMessage.id;
+  };
+
+  // Render helper to remove markdown symbols for a clean preview
+  const renderContent = (content: string) => {
+    const sanitized = content
+      .replace(/<\/?think>/g, "") // remove <think> tags but keep inner content
+      .replace(/\*\*/g, "") // remove bold markers
+      .replace(/`{1,3}/g, "") // remove backticks and code fences
+      .replace(/^###\s+/gm, "") // strip markdown headings
+      .replace(/^##\s+/gm, "")
+      .replace(/^#\s+/gm, "");
+
+    const lines = sanitized.split("\n");
+    return (
+      <div className="leading-relaxed">
+        {lines.map((line, idx) => {
+          const formatted = line.replace(/^\-\s+/, "• ");
+          return (
+            <div key={idx} className="whitespace-pre-wrap">
+              {formatted}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const updateMessage = (id: string, content: string) => {
@@ -91,110 +267,103 @@ export function PlanningView() {
     addMessage("user", userMessage);
     setIsProcessing(true);
 
-    // Simulate AI processing
-    const thinkingId = addMessage("ai", "Processing request...");
+    // Add progress message for slow ASI:One API
+    addMessage(
+      "system",
+      `Awaiting agent response… This may take up to 2 minutes`
+    );
 
-    // Check if it's a planning request
-    if (
-      userMessage.toLowerCase().includes("plan") &&
-      userMessage.toLowerCase().includes("delivery")
-    ) {
-      // Simulate AI planning steps
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updateMessage(
-        thinkingId,
-        "Analyzing current needs and available resources..."
-      );
+    try {
+      // Call AI chat API with session ID for Agentverse agent
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMessage,
+          session_id: sessionId,
+          context: {
+            disasters: disasters,
+            analyses: aiAnalyses,
+          },
+        }),
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      updateMessage(
-        thinkingId,
-        "Searching network for available supply nodes..."
-      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Chat error:", errorData);
 
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      updateMessage(
-        thinkingId,
-        "Calculating optimal routes using MeTTa Nodes..."
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 1800));
-      updateMessage(
-        thinkingId,
-        "Evaluating risk factors and cost efficiency..."
-      );
-
-      // Get planning result
-      const openNeeds = needs.filter((n) => n.status === "open");
-      if (openNeeds.length > 0) {
-        const targetNeed = openNeeds[0];
-        try {
-          const planResult = await aidRouteSimulation.planMission(
-            targetNeed.id
+        if (response.status === 503) {
+          // Network error
+          addMessage(
+            "system",
+            `Network error\n\n` +
+              `Unable to connect to ASI:One API.\n\n` +
+              `Error: ${errorData.message}\n\n` +
+              `To fix:\n` +
+              `1. Check your internet connection\n` +
+              `2. Verify ASI:One API key\n` +
+              `3. Check if Agentverse agent is online`,
+            undefined,
+            ["View setup guide", "Check agent status"]
           );
-          setCurrentPlan(planResult);
-
-          updateMessage(
-            thinkingId,
-            `✅ Mission Plan Generated
-
-**Target**: ${targetNeed.location} - ${targetNeed.item} (${
-              targetNeed.quantity
-            } units)
-**Optimal Supplier**: ${planResult.supplier}
-**Route Strategy**: ${planResult.route}
-**Risk Assessment**: ${planResult.risk}
-**Funds Required**: $${planResult.funds.toLocaleString()} PYUSD
-
-Mission is ready for approval. Use "View MeTTa Reasoning" to see detailed analysis.`
+        } else if (response.status === 408) {
+          // Silently stop processing on timeout without verbose error message
+        } else if (response.status === 401) {
+          // API key error
+          addMessage(
+            "system",
+            `API key error\n\n` +
+              `ASI:One API key is missing or invalid.\n\n` +
+              `Error: ${errorData.message}\n\n` +
+              `To fix:\n` +
+              `1. Get API key from https://asi1.ai\n` +
+              `2. Add to .env.local file\n` +
+              `3. Restart the development server`
           );
-        } catch (error) {
-          updateMessage(
-            thinkingId,
-            "Error generating mission plan. Please try again."
+        } else {
+          // Generic error with details
+          addMessage(
+            "system",
+            `Chat error\n\n` +
+              `Status: ${response.status}\n` +
+              `Error: ${errorData.message || "Unknown error"}`
           );
         }
-      } else {
-        updateMessage(
-          thinkingId,
-          "No open needs found requiring immediate planning."
-        );
+
+        setIsProcessing(false);
+        return;
       }
-    } else if (
-      userMessage.toLowerCase().includes("status") ||
-      userMessage.toLowerCase().includes("overview")
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const openNeeds = needs.filter((n) => n.status === "open").length;
-      const criticalNeeds = needs.filter(
-        (n) => n.urgency === "critical" && n.status === "open"
-      ).length;
 
-      updateMessage(
-        thinkingId,
-        `📊 Current System Status:
+      const aiResponse = await response.json();
 
-• **Open Needs**: ${openNeeds} locations requiring assistance
-• **Critical Priority**: ${criticalNeeds} urgent interventions needed
-• **Network Status**: All MeTTa nodes operational
-• **Planning Capacity**: Ready for new mission optimization
+      // Check if this generated a mission plan
+      if (aiResponse.mission_data && aiResponse.mission_data.supplies) {
+        setCurrentPlan(aiResponse.mission_data);
+      }
 
-Available commands:
-- "Plan delivery for [location]" - Generate optimized mission plan
-- "Show critical needs" - Display highest priority requirements
-- "Analyze supply chain" - Review network efficiency`
+      // Add AI message with suggestions
+      addMessage(
+        "ai",
+        aiResponse.message,
+        aiResponse.mission_data,
+        aiResponse.suggestions
       );
-    } else {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updateMessage(
-        thinkingId,
-        `I can help optimize humanitarian logistics missions. Try these commands:
-
-• **"Plan delivery for Camp Beta"** - Generate optimized mission plan
-• **"Status overview"** - View current system status  
-• **"Show critical needs"** - Display urgent requirements
-
-I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximum efficiency.`
+    } catch (error) {
+      console.error("Chat error:", error);
+      addMessage(
+        "system",
+        `Connection error\n\n` +
+          `Unable to connect to the Agentverse agent via ASI:One API.\n\n` +
+          `Please ensure:\n` +
+          `1. ASI:One API key is set in .env.local\n` +
+          `2. Your Agentverse agent is running\n` +
+          `3. Network connection is active\n\n` +
+          `Error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }\n\n` +
+          `See AGENTVERSE_SETUP.md for setup instructions`,
+        undefined,
+        ["View setup guide", "Check API key"]
       );
     }
 
@@ -208,13 +377,42 @@ I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximu
     }
   };
 
-  const handleApproveMission = () => {
-    if (currentPlan) {
+  const handleApproveMission = async () => {
+    if (!currentPlan) return;
+
+    try {
+      const amount = currentPlan.estimated_cost; // demo: use estimated cost
+      const recipient = "0x0000000000000000000000000000000000000001"; // demo recipient
+      const missionId = Math.floor(Math.random() * 1000) + 1; // demo mission id
+
+      const res = await fetch("/api/payments/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ missionId, amount, recipient }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        addMessage(
+          "system",
+          `Payment failed\n\nStatus: ${res.status}\nError: ${
+            err.message || err.error || "Unknown error"
+          }`
+        );
+        return;
+      }
+
+      const data = await res.json();
       addMessage(
         "system",
-        `✅ Mission approved and funds locked. New mission added to Operations queue.`
+        `Mission approved and funds locked.\nTransaction: ${data.transaction_id}`
       );
       setCurrentPlan(null);
+    } catch (e: any) {
+      addMessage(
+        "system",
+        `Payment failed\n\n${e?.message || "Unknown error"}`
+      );
     }
   };
 
@@ -247,41 +445,67 @@ I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximu
               <div
                 key={message.id}
                 className={cn(
-                  "flex gap-3",
-                  message.type === "user" && "justify-end"
+                  "flex gap-3 flex-col",
+                  message.type === "user" && "items-end"
                 )}
               >
-                {message.type !== "user" && (
-                  <div
-                    className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                      message.type === "ai" &&
-                        "bg-primary text-primary-foreground",
-                      message.type === "system" && "bg-green-500 text-white"
-                    )}
-                  >
-                    {message.type === "ai" && <Brain className="w-4 h-4" />}
-                    {message.type === "system" && <Zap className="w-4 h-4" />}
-                  </div>
-                )}
-
                 <div
                   className={cn(
-                    "max-w-[80%] rounded-lg p-3",
-                    message.type === "user" &&
-                      "bg-primary text-primary-foreground ml-auto",
-                    message.type === "ai" && "bg-secondary",
-                    message.type === "system" &&
-                      "bg-green-500/10 border border-green-500/20"
+                    "flex gap-3",
+                    message.type === "user" && "justify-end"
                   )}
                 >
-                  <div className="whitespace-pre-wrap text-sm">
-                    {message.content}
-                  </div>
-                  <div className="text-xs opacity-70 mt-1">
-                    {formatTimestamp(message.timestamp)}
+                  {message.type !== "user" && (
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                        message.type === "ai" &&
+                          "bg-primary text-primary-foreground",
+                        message.type === "system" && "bg-green-500 text-white"
+                      )}
+                    >
+                      {message.type === "ai" && <Brain className="w-4 h-4" />}
+                      {message.type === "system" && <Zap className="w-4 h-4" />}
+                    </div>
+                  )}
+
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-lg p-3",
+                      message.type === "user" &&
+                        "bg-primary text-primary-foreground ml-auto",
+                      message.type === "ai" && "bg-secondary",
+                      message.type === "system" &&
+                        "bg-green-500/10 border border-green-500/20"
+                    )}
+                  >
+                    <div className="text-sm">
+                      {renderContent(message.content)}
+                    </div>
+                    <div className="text-xs opacity-70 mt-1">
+                      {formatTimestamp(message.timestamp)}
+                    </div>
                   </div>
                 </div>
+
+                {/* Suggestions */}
+                {message.suggestions && message.suggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 ml-11 max-w-[80%]">
+                    {message.suggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setInputMessage(suggestion);
+                          setTimeout(handleSendMessage, 100);
+                        }}
+                        className="text-xs px-3 py-1.5 bg-secondary/50 hover:bg-secondary rounded-full transition-colors"
+                        disabled={isProcessing}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
@@ -338,18 +562,25 @@ I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximu
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-green-600" />
                   <span className="font-medium">
-                    ${currentPlan.funds.toLocaleString()} PYUSD
+                    ${currentPlan.estimated_cost.toLocaleString()} PYUSD
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Route className="w-4 h-4 text-blue-500" />
-                  <span>{currentPlan.route}</span>
+                  <span>
+                    {currentPlan.estimated_beneficiaries.toLocaleString()}{" "}
+                    beneficiaries
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-yellow-500" />
-                  <span>Risk: {currentPlan.risk}</span>
+                  <span>Efficiency: {currentPlan.efficiency_score}%</span>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Timeline: {currentPlan.estimated_timeline}
                 </div>
               </div>
 
@@ -377,9 +608,10 @@ I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximu
             <h3 className="font-semibold mb-4">Quick Commands</h3>
             <div className="space-y-2">
               {[
-                "Plan delivery for Camp Beta",
                 "Status overview",
+                "Analyze current disasters",
                 "Show critical needs",
+                "How does AI planning work?",
               ].map((command) => (
                 <button
                   key={command}
@@ -396,24 +628,39 @@ I use MeTTa reasoning to evaluate suppliers, routes, and risk factors for maximu
             </div>
           </div>
 
-          {/* Open Needs Summary */}
+          {/* Active Disasters Summary */}
           <div className="bg-card border border-border rounded-xl p-6">
-            <h3 className="font-semibold mb-4">Open Needs</h3>
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-yellow-500" />
+              Live GDACS Disasters
+            </h3>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {needs
-                .filter((n) => n.status === "open")
-                .slice(0, 5)
-                .map((need) => (
-                  <div
-                    key={need.id}
-                    className="p-2 bg-secondary/50 rounded text-sm"
-                  >
-                    <div className="font-medium">{need.location}</div>
-                    <div className="text-muted-foreground">
-                      {need.item} • {need.quantity}
-                    </div>
+              {disasters.slice(0, 5).map((disaster, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "p-2 rounded text-sm",
+                    disaster.urgency === "critical"
+                      ? "bg-red-500/10 border border-red-500/20"
+                      : "bg-secondary/50"
+                  )}
+                >
+                  <div className="font-medium flex items-center gap-2">
+                    {disaster.urgency === "critical" && (
+                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                    )}
+                    {disaster.location}
                   </div>
-                ))}
+                  <div className="text-muted-foreground text-xs">
+                    {disaster.typeName} • Severity: {disaster.severity}/5
+                  </div>
+                </div>
+              ))}
+              {disasters.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Monitoring for disasters...
+                </div>
+              )}
             </div>
           </div>
         </div>

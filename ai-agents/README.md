@@ -1,304 +1,332 @@
-# AidRoute AI Agents
+# 🤖 AidRoute AI Agents
 
-**Autonomous Humanitarian Logistics Coordination**
+Humanitarian logistics coordination powered by:
 
-Powered by the **Artificial Superintelligence Alliance**:
-
-- 🤖 **Fetch.ai uAgents** - Autonomous agent framework
-- 🧠 **SingularityNET MeTTa** - Knowledge graphs & reasoning
-- 💰 **PYUSD Smart Contracts** - Transparent funding
-- 💬 **ASI:One Chat Protocol** - Human-agent interaction
-
----
-
-## 🌟 Overview
-
-The AidRoute AI Agent is an autonomous coordinator for humanitarian missions that:
-
-1. **Monitors** the blockchain for new missions and funding
-2. **Reasons** about optimal resource allocation using MeTTa
-3. **Interacts** with users via natural language (ASI:One)
-4. **Coordinates** multi-agent systems for complex logistics
-5. **Optimizes** mission plans based on humanitarian knowledge
-6. **Verifies** deliveries and maintains transparency
-
----
+- **Fetch.ai uAgents** - Multi-agent coordination framework
+- **SingularityNET MeTTa** - Knowledge reasoning engine
+- **ASI:One Chat Protocol** - Natural language interaction
+- **GDACS Integration** - Real-time disaster monitoring
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     ASI:One Chat Interface                  │
-│            (Human → Agent Natural Interaction)              │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│              AidRoute Humanitarian Agent                    │
-│  ┌─────────────────────────────────────────────────────┐  │
-│  │  Fetch.ai uAgent Core                               │  │
-│  │  • Autonomous behavior                              │  │
-│  │  • Message protocols                                │  │
-│  │  • Event handling                                   │  │
-│  └─────────────────────────────────────────────────────┘  │
-│                                                            │
-│  ┌────────────────┐          ┌─────────────────────────┐  │
-│  │ MeTTa Reasoner │◄────────►│  Blockchain Interface   │  │
-│  │                │          │                         │  │
-│  │ • Knowledge    │          │  • Smart contract calls │  │
-│  │ • Optimization │          │  • Event monitoring     │  │
-│  │ • Validation   │          │  • Transaction signing  │  │
-│  └────────────────┘          └─────────────────────────┘  │
-└────────────────────┬───────────────────┬───────────────────┘
-                     │                   │
-         ┌───────────▼───────┐  ┌────────▼──────────┐
-         │  MeTTa Knowledge  │  │  PYUSD Contract   │
-         │   Graph Storage   │  │  (On Sepolia)     │
-         └───────────────────┘  └───────────────────┘
+AidRoute AI System
+├── MeTTa Reasoner (SingularityNET)
+│   ├── Knowledge base for humanitarian logistics
+│   ├── Supply optimization algorithms
+│   └── Cost-benefit analysis
+│
+├── GDACS Analyzer
+│   ├── Real-time disaster event processing
+│   ├── Priority scoring
+│   └── Risk assessment
+│
+├── AidRoute Coordinator (Fetch.ai uAgent)
+│   ├── Chat Protocol implementation (ASI:One compatible)
+│   ├── Natural language processing
+│   ├── Multi-agent orchestration
+│   └── Mission planning coordination
+│
+└── Flask API Bridge
+    ├── /health - Health check
+    ├── /chat - Natural language chat
+    ├── /analyze - Disaster analysis
+    └── /plan-mission - Mission planning
 ```
-
----
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. Install Dependencies
 
 ```bash
 cd ai-agents
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Configuration
+### 2. Configure Environment (Optional)
 
-Create a `.env` file (see `.env.example`):
+Create a `.env` file:
 
-```env
-AGENT_SEED="your_unique_seed_phrase"
-AGENT_NAME="AidRoute Humanitarian Coordinator"
-CONTRACT_ADDRESS=0x681735982373ae65a8f8b2074922a924780ba360
-PYUSD_ADDRESS=0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9
-SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+```bash
+# API Keys (optional)
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+
+# Blockchain (optional)
+ETHEREUM_RPC_URL=https://sepolia.infura.io/v3/your_key
 PRIVATE_KEY=your_private_key_here
+
+# Service Configuration
+AI_SERVICE_PORT=5001
+FLASK_DEBUG=false
 ```
 
-### 3. Run the Agent
+### 3. Start the Service
+
+**Option A: Using the startup script (recommended)**
 
 ```bash
-python src/aidroute_agent.py
+./start_ai_service.sh
 ```
 
-### 4. Register on Agentverse
+**Option B: Manual start**
 
 ```bash
-python register_agentverse.py
+source venv/bin/activate
+cd src
+python api_bridge.py
 ```
 
-### 5. Connect via ASI:One
+The service will be available at `http://localhost:5001`
 
-1. Go to https://asi1.ai/
-2. Search for "AidRoute"
-3. Start chatting with the agent!
+## 📡 API Endpoints
 
----
+### Health Check
 
-## 💬 Chat Examples
+```bash
+GET /health
 
-### Ask the Agent
+Response:
+{
+  "status": "healthy",
+  "services": {
+    "reasoner": true,
+    "analyzer": true
+  }
+}
+```
 
-**You:** "Create a mission in Gaza for medical supplies"
+### Chat (Natural Language)
 
-**Agent:** "I can help you create a humanitarian mission! 🌍..."
+```bash
+POST /chat
 
----
+Request:
+{
+  "message": "Plan a mission for Gaza",
+  "context": {
+    "disasters": [...],
+    "analyses": [...]
+  }
+}
 
-**You:** "Show me active missions"
+Response:
+{
+  "message": "✅ Mission Plan Generated...",
+  "suggestions": ["Deploy mission", "Adjust supplies"],
+  "mission_data": {
+    "location": "Gaza",
+    "supplies": [...],
+    "estimated_cost": 15000,
+    "estimated_beneficiaries": 800,
+    "estimated_timeline": "5-7 days",
+    "efficiency_score": 85
+  }
+}
+```
 
-**Agent:** "📊 AidRoute System Status
+### Analyze Disasters
 
-- Active Missions: 3
-- Total Donations: 12,500 PYUSD
-  ..."
+```bash
+POST /analyze
 
----
+Request:
+{
+  "disasters": [
+    {
+      "eventType": "EQ",
+      "typeName": "Earthquake",
+      "location": "Turkey",
+      "severity": 5,
+      "urgency": "critical",
+      "title": "Magnitude 7.8 Earthquake",
+      "description": "..."
+    }
+  ]
+}
 
-**You:** "Optimize my mission plan for Syria"
+Response: Array of analyzed disasters with mission plans
+```
 
-**Agent:** "🧠 AI-Optimized Mission Plan
+### Plan Mission
 
-Based on conflict zone dynamics and supply chain analysis..."
+```bash
+POST /plan-mission
 
----
+Request:
+{
+  "crisis_type": "earthquake",
+  "location": "Turkey",
+  "urgency": "critical",
+  "budget": 50000
+}
 
-## 🧠 MeTTa Knowledge Graph
+Response:
+{
+  "supplies": [...],
+  "estimated_cost": 15000,
+  "estimated_beneficiaries": 800,
+  "efficiency_score": 85,
+  "estimated_timeline": "3-5 days",
+  "reasoning": "...",
+  "crisis_category": "natural-disaster"
+}
+```
 
-The agent uses MeTTa for structured reasoning about:
+## 🧠 MeTTa Knowledge Base
+
+The MeTTa reasoning engine includes:
 
 ### Crisis Types
 
-- Medical Emergency
-- Natural Disaster
-- Conflict Zones
-- Food Security
-- Water Crisis
-- Refugee Support
+- `earthquake` - Natural disaster, urgent
+- `flood` - Natural disaster, high
+- `cyclone` - Natural disaster, critical
+- `wildfire` - Natural disaster, high
+- `volcano` - Natural disaster, critical
+- `drought` - Food insecurity, medium
+- `medical-emergency` - Health crisis, urgent
 
-### Supply Categories
+### Supply Packages
 
-- Medical (Perishable)
-- Food (Perishable)
-- Water (Essential)
-- Shelter (Durable)
-- Clothing (Durable)
+- `medical-kit-basic` - $250, 50 beneficiaries
+- `medical-kit-advanced` - $800, 100 beneficiaries
+- `shelter-tent-family` - $800, 6 beneficiaries
+- `water-purification-kit` - $400, 100 beneficiaries
+- `food-package-family` - $150, 6 beneficiaries
+- `hygiene-family-kit` - $80, 5 beneficiaries
 
-### Regional Constraints
+### Regional Factors
 
-- Access limitations
-- Conflict zones
-- Infrastructure status
-- Logistics multipliers
+- Gaza: 1.5x (restricted access)
+- Syria: 1.8x (conflict zone)
+- Yemen: 1.6x (restricted)
+- Haiti: 1.3x (logistics challenge)
+- Afghanistan: 1.7x (conflict zone)
 
-### Cost Estimation
+## 🌐 Fetch.ai uAgent Integration
 
-- Base supply costs
-- Logistics multipliers
-- Regional adjustments
-- Timeline estimates
+The AidRoute Coordinator is a fully-functional Fetch.ai uAgent that:
 
----
+### 1. Implements Chat Protocol (ASI:One Compatible)
 
-## 📡 Agent Protocols
+```python
+from uagents_core.contrib.protocols.chat import (
+    ChatMessage,
+    ChatAcknowledgement,
+    TextContent,
+    chat_protocol_spec,
+)
 
-### Chat Protocol
+# Agent can communicate with other agents using standard protocol
+coordinator = AidRouteCoordinator(
+    name="aidroute-coordinator",
+    port=8000,
+    mailbox=True  # For Agentverse integration
+)
+```
 
-**Purpose:** Human-agent interaction via ASI:One
+### 2. Discoverable on Agentverse
 
-**Messages:**
+- The agent can be registered on Agentverse
+- Accessible via ASI:One chat interface
+- Supports mailbox communication
 
-- `ChatRequest` - User message
-- `ChatResponse` - Agent response with suggestions
+### 3. Multi-Agent Ready
 
-**Capabilities:**
+- Can coordinate with other uAgents
+- Supports agent-to-agent messaging
+- Implements standard Fetch.ai protocols
 
-- Mission creation assistance
-- Status queries
-- Donation guidance
-- Plan optimization
-- General queries
+## 🔗 Frontend Integration
 
-### Mission Management Protocol
+The Next.js frontend connects via these API routes:
 
-**Purpose:** Blockchain mission operations
+### `/app/api/ai/chat/route.ts`
 
-**Messages:**
+```typescript
+const response = await fetch("http://localhost:5001/chat", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ message, context }),
+});
+```
 
-- `MissionRequest` - Create new mission
-- `MissionResponse` - Creation result
-- `MissionQuery` - Query missions
-- `MissionInfo` - Mission data
+### `/app/api/ai/analyze-disasters/route.ts`
 
-**Operations:**
+```typescript
+const response = await fetch("http://localhost:5001/analyze", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ disasters }),
+});
+```
 
-- Create missions on-chain
-- Query mission status
-- Monitor funding
-- Track deployments
+## 📊 Chat Commands
 
----
+The AI agent understands natural language. Try these commands:
 
-## 🔄 Agent Behavior
+### Greetings
 
-### On Startup
+- "Hello"
+- "Hi there"
+- "Hey AI"
 
-1. Connect to Sepolia blockchain
-2. Initialize MeTTa knowledge base
-3. Register protocols
-4. Start listening for messages
+### Status Queries
 
-### Periodic Tasks (Every 5 min)
+- "Status overview"
+- "System status"
+- "Show summary"
 
-1. Monitor pending missions
-2. Check funding status
-3. Prioritize urgent needs
-4. Update knowledge base
+### Planning Requests
 
-### On Message
+- "Plan a mission for Gaza"
+- "Create mission for earthquake in Turkey"
+- "Plan urgent medical response"
 
-1. Parse intent
-2. Query MeTTa for reasoning
-3. Execute blockchain calls if needed
-4. Respond with suggestions
+### Disaster Analysis
 
----
+- "Analyze current disasters"
+- "Show GDACS events"
+- "Check active crises"
 
-## 🎯 Use Cases
+### Explanations
 
-### 1. Mission Creation
+- "How does AI planning work?"
+- "What is MeTTa?"
+- "Explain the system"
 
-"I need to send medical supplies to Gaza"
-→ Agent optimizes supply list, estimates costs, creates mission
+## 🧪 Testing
 
-### 2. Donation Guidance
+### Test Health Endpoint
 
-"How can I help?"
-→ Agent shows urgent missions, guides donation process
+```bash
+curl http://localhost:5001/health
+```
 
-### 3. Status Monitoring
+### Test Chat
 
-"What's the status of Mission #5?"
-→ Agent queries blockchain, shows real-time data
+```bash
+curl -X POST http://localhost:5001/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, what can you do?"}'
+```
 
-### 4. Logistics Optimization
+### Test Mission Planning
 
-"Suggest the best route for delivering to Yemen"
-→ MeTTa reasons about constraints, suggests optimal plan
+```bash
+curl -X POST http://localhost:5001/plan-mission \
+  -H "Content-Type: application/json" \
+  -d '{
+    "crisis_type": "earthquake",
+    "location": "Turkey",
+    "urgency": "critical"
+  }'
+```
 
-### 5. Multi-Agent Coordination
-
-Supplier Agent + Logistics Agent + Verification Agent
-→ Coordinate complex delivery workflows
-
----
-
-## 🔗 Integration Points
-
-### Agentverse
-
-- **Discovery**: Search "AidRoute" on Agentverse
-- **Hosting**: Agent can be hosted on Agentverse cloud
-- **Orchestration**: Multi-agent coordination
-
-### ASI:One
-
-- **Chat Protocol**: Natural language interface
-- **Agent Discovery**: Find AidRoute via chat
-- **Function Calling**: Execute mission operations
-
-### Smart Contract
-
-- **Read**: Query missions, stats, funding
-- **Write**: Create missions, deploy funds
-- **Events**: Listen for on-chain updates
-
-### MeTTa Knowledge
-
-- **Reasoning**: Optimize mission plans
-- **Validation**: Check mission data
-- **Prioritization**: Rank urgent needs
-
----
-
-## 📊 Agent Metrics
-
-The agent tracks:
-
-- **Missions Created**: Total missions initiated
-- **Funds Coordinated**: Total PYUSD deployed
-- **Beneficiaries**: People helped
-- **Response Time**: Average query response
-- **Optimization Score**: Plan efficiency
-
----
-
-## 🛠️ Development
+## 🔧 Development
 
 ### Project Structure
 
@@ -306,144 +334,118 @@ The agent tracks:
 ai-agents/
 ├── src/
 │   ├── __init__.py
-│   ├── aidroute_agent.py          # Main agent
-│   ├── metta_reasoner.py          # MeTTa integration
-│   └── blockchain_interface.py    # Smart contract interface
-├── metta-knowledge/
-│   └── humanitarian.metta         # Knowledge base
+│   ├── metta_reasoner.py       # MeTTa reasoning engine
+│   ├── gdacs_analyzer.py        # GDACS disaster analyzer
+│   ├── aidroute_agent.py        # Fetch.ai uAgent
+│   └── api_bridge.py            # Flask API server
 ├── requirements.txt
-├── README.md
-└── register_agentverse.py         # Registration script
+├── start_ai_service.sh
+└── README.md
 ```
 
-### Testing
+### Adding New Crisis Types
+
+Edit `metta_reasoner.py`:
+
+```python
+def _initialize_knowledge_base(self):
+    self.metta.run("""
+        (crisis-type "new-crisis" category urgency)
+        (supply-package "new-supply" category cost weight urgency)
+    """)
+```
+
+### Extending Chat Capabilities
+
+Edit `aidroute_agent.py`:
+
+```python
+def process_chat_message(self, message: str, context: Optional[Dict]):
+    # Add new intent detection
+    if self._is_custom_intent(message):
+        return self._handle_custom_intent(context)
+```
+
+## 🐛 Troubleshooting
+
+### Port Already in Use
 
 ```bash
-# Test MeTTa reasoner
-python src/metta_reasoner.py
+# Kill process on port 5001
+lsof -ti:5001 | xargs kill -9
 
-# Test blockchain interface
-python src/blockchain_interface.py
-
-# Test full agent (local)
-python src/aidroute_agent.py
+# Or use different port
+AI_SERVICE_PORT=5002 python src/api_bridge.py
 ```
 
----
+### MeTTa Not Available
 
-## 🏆 Hackathon Alignment
+```bash
+# Install hyperon
+pip install hyperon>=0.2.0
+```
 
-### Qualification Criteria
+### uAgents Not Available
 
-#### 1. Functionality & Technical Implementation (25%)
+```bash
+# Install uAgents
+pip install uagents>=0.17.0 uagents-core>=0.8.0
+```
 
-✅ Agent system works as intended  
-✅ Real-time communication & reasoning  
-✅ Blockchain integration functional
+### Import Errors
 
-#### 2. Use of ASI Alliance Tech (20%)
+```bash
+# Make sure you're in the right directory
+cd ai-agents/src
+python api_bridge.py
+```
 
-✅ Registered on Agentverse  
-✅ Chat Protocol live for ASI:One  
-✅ uAgents framework utilized  
-✅ MeTTa Knowledge Graphs integrated
+## 🚀 Deployment Options
 
-#### 3. Innovation & Creativity (20%)
+### 1. Local Development
 
-✅ Novel application to humanitarian logistics  
-✅ Multi-agent coordination for crisis response  
-✅ AI-optimized resource allocation
+- Run `./start_ai_service.sh`
+- Service at `http://localhost:5001`
 
-#### 4. Real-World Impact & Usefulness (20%)
+### 2. Agentverse Mailbox Agent
 
-✅ Solves actual humanitarian challenges  
-✅ Transparent, blockchain-verified aid  
-✅ Scalable to global crisis response
+```python
+coordinator = AidRouteCoordinator(
+    name="aidroute",
+    port=8000,
+    mailbox=True,  # Enable mailbox
+    publish_agent_details=True,
+    readme_path="README.md"
+)
+coordinator.run()
+```
 
-#### 5. User Experience & Presentation (15%)
+### 3. Docker Deployment
 
-✅ Natural language chat interface  
-✅ Clear mission guidance  
-✅ Comprehensive documentation
+```dockerfile
+FROM python:3.9
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY src/ ./src/
+CMD ["python", "src/api_bridge.py"]
+```
 
----
+## 📚 Learn More
 
-## 🎁 Prize Categories
+- **Fetch.ai Docs**: https://fetch.ai/docs
+- **SingularityNET MeTTa**: https://metta-lang.dev
+- **ASI:One**: https://asi1.ai
+- **GDACS**: https://gdacs.org
 
-### 🥇 First Place - $3,500
+## 📝 License
 
-**Best use of ASI:One + MeTTa**
-
-- ✅ ASI:One chat interface for human-agent interaction
-- ✅ MeTTa structured reasoning for mission optimization
-- ✅ Real-world impact: Humanitarian aid coordination
-- ✅ Creative problem-solving with AI
-
-### 🥈 Second Place - $2,500
-
-**Best Agentverse Launch**
-
-- ✅ Clear agent listing on Agentverse
-- ✅ Discoverable via ASI:One
-- ✅ MeTTa powers logic and reasoning
-- ✅ High usability and adoption potential
-
-### 🥉 Third Place - $1,750
-
-**Best Multi-Agent System**
-
-- ✅ Ready for multi-agent coordination
-- ✅ Fetch.ai agents + MeTTa knowledge
-- ✅ Cross-chain communication (PYUSD on Ethereum)
-- ✅ Complex task coordination
-
----
-
-## 📚 Resources
-
-### Documentation
-
-- [Fetch.ai Docs](https://innovationlab.fetch.ai/resources/docs/intro)
-- [MeTTa Integration](https://github.com/fetchai/innovation-lab-examples/tree/main/web3/singularity-net-metta)
-- [MeTTa Knowledge Graphs](https://metta-lang.dev/docs/learn/tutorials/python_use/metta_python_basics.html)
-- [Agentverse](https://innovationlab.fetch.ai/resources/docs/agentverse/)
-- [ASI:One](https://asi1.ai/)
-
-### Links
-
-- **Agentverse**: https://agentverse.ai
-- **ASI:One**: https://asi1.ai/
-- **Fetch.ai**: https://fetch.ai
-- **SingularityNET**: https://singularitynet.io
-
----
+MIT License - See project root for details
 
 ## 🤝 Contributing
 
-Want to enhance the AidRoute agent?
-
-1. Fork the repository
-2. Add new MeTTa knowledge
-3. Implement new protocols
-4. Test with Agentverse
-5. Submit PR
+Contributions welcome! This is a hackathon project showcasing ASI Alliance technologies.
 
 ---
 
-## 📜 License
-
-MIT License - See LICENSE file
-
----
-
-## 🌍 Impact
-
-**AidRoute** + **ASI Alliance** = **Autonomous Humanitarian Logistics**
-
-By combining blockchain transparency (PYUSD), AI reasoning (MeTTa), and autonomous coordination (uAgents), we're revolutionizing how humanitarian aid reaches those who need it most.
-
-**Every mission. Every donation. Every delivery. Verified. Optimized. Transparent.**
-
----
-
-Built with ❤️ for the Artificial Superintelligence Alliance Hackathon
+**Built with 💙 for the ASI Alliance Hackathon**

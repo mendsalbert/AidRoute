@@ -1,462 +1,325 @@
 """
-MeTTa Knowledge Graph Reasoner for Humanitarian Logistics
-
-Uses SingularityNET's MeTTa for structured knowledge representation
-and reasoning about humanitarian missions, supply chains, and crisis response.
+MeTTa Humanitarian Reasoning Engine
+Uses SingularityNET's MeTTa for structured knowledge representation and reasoning
 """
 
-import os
 from typing import Dict, List, Any, Optional
+import logging
 
 try:
-    from hyperon import MeTTa, GroundingSpace
+    from hyperon import MeTTa, E, S, V
     METTA_AVAILABLE = True
 except ImportError:
     METTA_AVAILABLE = False
-    print("⚠️  MeTTa (hyperon) not installed. Run: pip install hyperon")
+    logging.warning("MeTTa (hyperon) not available. Install with: pip install hyperon")
 
 
 class MettaHumanitarianReasoner:
     """
-    MeTTa-powered reasoning engine for humanitarian logistics
+    MeTTa-based reasoning engine for humanitarian logistics optimization
     """
     
     def __init__(self):
+        self.logger = logging.getLogger("MettaReasoner")
+        
         if not METTA_AVAILABLE:
-            raise ImportError("MeTTa (hyperon) is required but not installed")
-        
-        # Initialize MeTTa space
-        self.metta = MeTTa()
-        self.space = GroundingSpace()
-        
-        # Load humanitarian knowledge base
-        self._initialize_knowledge_base()
-        
+            self.logger.warning("MeTTa not available - using fallback logic")
+            self.metta = None
+            return
+            
+        try:
+            self.metta = MeTTa()
+            self._initialize_knowledge_base()
+            self.logger.info("✅ MeTTa Reasoner initialized with knowledge base")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize MeTTa: {e}")
+            self.metta = None
+    
     def _initialize_knowledge_base(self):
-        """
-        Initialize MeTTa knowledge base with humanitarian logistics rules
-        """
-        # Define humanitarian crisis types
+        """Initialize the humanitarian logistics knowledge base"""
+        if not self.metta:
+            return
+            
+        # Define crisis types and urgency levels
         self.metta.run("""
-            ; Crisis Types and Characteristics
-            (: crisis-type (-> String Symbol))
-            (crisis-type "medical-emergency" urgent)
-            (crisis-type "natural-disaster" urgent)
-            (crisis-type "conflict" high-risk)
-            (crisis-type "food-security" ongoing)
-            (crisis-type "water-crisis" critical)
-            (crisis-type "refugee-support" sustained)
+            ; Crisis type definitions
+            (: crisis-type (-> String Symbol Symbol))
+            (crisis-type "earthquake" natural-disaster urgent)
+            (crisis-type "flood" natural-disaster high)
+            (crisis-type "cyclone" natural-disaster critical)
+            (crisis-type "wildfire" natural-disaster high)
+            (crisis-type "volcano" natural-disaster critical)
+            (crisis-type "drought" food-insecurity medium)
+            (crisis-type "medical-emergency" health-crisis urgent)
             
-            ; Supply Categories
-            (: supply-category (-> String Symbol))
-            (supply-category "medical" perishable)
-            (supply-category "food" perishable)
-            (supply-category "water" essential)
-            (supply-category "shelter" durable)
-            (supply-category "clothing" durable)
+            ; Supply package definitions (name category cost weight urgency)
+            (: supply-package (-> String Symbol Number Number Symbol))
+            (supply-package "medical-kit-basic" medical 250 50 urgent)
+            (supply-package "medical-kit-advanced" medical 800 100 critical)
+            (supply-package "shelter-tent-family" shelter 800 150 urgent)
+            (supply-package "shelter-tarp-basic" shelter 50 20 medium)
+            (supply-package "water-purification-kit" water 400 30 urgent)
+            (supply-package "food-package-family" food 150 80 high)
+            (supply-package "hygiene-family-kit" hygiene 80 15 medium)
             
-            ; Regional Constraints
-            (: region-constraint (-> String Symbol))
-            (region-constraint "Gaza" access-limited)
-            (region-constraint "Syria" conflict-zone)
-            (region-constraint "Yemen" port-dependent)
-            (region-constraint "Sudan" logistics-challenged)
-            (region-constraint "Haiti" infrastructure-damaged)
+            ; Regional constraint factors
+            (: region-factor (-> String Symbol Number))
+            (region-factor "Gaza" restricted 1.5)
+            (region-factor "Syria" conflict-zone 1.8)
+            (region-factor "Yemen" restricted 1.6)
+            (region-factor "Haiti" logistics-challenge 1.3)
+            (region-factor "Afghanistan" conflict-zone 1.7)
             
-            ; Cost Estimation Rules (in PYUSD)
-            (: base-cost (-> String Number))
-            (base-cost "medical-kit-basic" 250)
-            (base-cost "medical-kit-advanced" 1500)
-            (base-cost "food-package-family" 150)
-            (base-cost "water-purification-kit" 400)
-            (base-cost "shelter-tent-family" 800)
-            (base-cost "clothing-package-adult" 75)
+            ; Beneficiary estimates per supply unit
+            (: beneficiary-estimate (-> String Number))
+            (beneficiary-estimate "medical-kit-basic" 50)
+            (beneficiary-estimate "medical-kit-advanced" 100)
+            (beneficiary-estimate "shelter-tent-family" 6)
+            (beneficiary-estimate "shelter-tarp-basic" 4)
+            (beneficiary-estimate "water-purification-kit" 100)
+            (beneficiary-estimate "food-package-family" 6)
+            (beneficiary-estimate "hygiene-family-kit" 5)
             
-            ; Logistics Multipliers
-            (: logistics-multiplier (-> Symbol Number))
-            (logistics-multiplier urgent 1.3)
-            (logistics-multiplier high-risk 1.5)
-            (logistics-multiplier access-limited 1.4)
-            (logistics-multiplier conflict-zone 1.6)
-            (logistics-multiplier port-dependent 1.2)
-            
-            ; Supply Chain Duration (days)
-            (: delivery-time (-> Symbol Number))
-            (delivery-time normal 7)
-            (delivery-time urgent 3)
-            (delivery-time conflict-zone 14)
-            (delivery-time access-limited 10)
-            
-            ; Impact Estimation
-            (: beneficiaries-per-package (-> String Number))
-            (beneficiaries-per-package "medical-kit-basic" 50)
-            (beneficiaries-per-package "medical-kit-advanced" 200)
-            (beneficiaries-per-package "food-package-family" 6)
-            (beneficiaries-per-package "water-purification-kit" 100)
-            (beneficiaries-per-package "shelter-tent-family" 6)
-            
-            ; Priority Rules
-            (: priority-score (-> Symbol Number))
-            (priority-score urgent 100)
-            (priority-score critical 95)
-            (priority-score high-risk 80)
-            (priority-score ongoing 60)
-            (priority-score sustained 50)
+            ; Crisis to supply mapping rules
+            (: recommend-supply (-> Symbol String))
+            (recommend-supply medical "medical-kit-basic")
+            (recommend-supply medical "medical-kit-advanced")
+            (recommend-supply shelter "shelter-tent-family")
+            (recommend-supply shelter "shelter-tarp-basic")
+            (recommend-supply water "water-purification-kit")
+            (recommend-supply food "food-package-family")
+            (recommend-supply hygiene "hygiene-family-kit")
         """)
-        
-    def optimize_mission_plan(self, mission_description: str) -> Dict[str, Any]:
+    
+    def optimize_mission_plan(self, 
+                             crisis_type: str, 
+                             location: str, 
+                             urgency: str,
+                             budget: Optional[float] = None) -> Dict[str, Any]:
         """
-        Use MeTTa to optimize a mission plan based on humanitarian knowledge
+        Generate optimized mission plan using MeTTa reasoning
         
         Args:
-            mission_description: Natural language description of the mission
+            crisis_type: Type of crisis (earthquake, flood, etc.)
+            location: Affected location
+            urgency: Urgency level (critical, urgent, high, medium)
+            budget: Optional budget constraint
             
         Returns:
-            Optimized mission plan with reasoning
+            Optimized mission plan with supplies, costs, and impact estimates
         """
-        # Parse mission intent
-        intent = self._parse_mission_intent(mission_description)
         
-        # Query MeTTa for optimal supply configuration
-        supplies = self._recommend_supplies(intent)
+        if not self.metta:
+            return self._fallback_optimization(crisis_type, location, urgency, budget)
         
-        # Estimate costs
-        cost_estimate = self._estimate_costs(supplies, intent.get('location'))
-        
-        # Estimate impact
-        impact = self._estimate_impact(supplies)
-        
-        # Calculate timeline
-        timeline = self._estimate_timeline(intent.get('urgency'), intent.get('location'))
-        
-        return {
-            "recommendation": self._format_recommendation(supplies, cost_estimate),
-            "reasoning": self._generate_reasoning(intent, supplies, cost_estimate),
-            "estimated_cost": cost_estimate['total'],
-            "estimated_beneficiaries": impact['beneficiaries'],
-            "estimated_timeline": f"{timeline} days",
-            "efficiency_score": self._calculate_efficiency(cost_estimate, impact),
-            "supplies": supplies,
-            "risk_factors": cost_estimate.get('risk_factors', [])
-        }
+        try:
+            # Determine crisis category and supplies
+            supplies = self._get_recommended_supplies(crisis_type)
+            
+            # Calculate costs with regional factors
+            total_cost, logistics_cost = self._calculate_costs(supplies, location)
+            
+            # Estimate beneficiaries
+            beneficiaries = self._estimate_beneficiaries(supplies)
+            
+            # Calculate efficiency score
+            efficiency_score = self._calculate_efficiency(beneficiaries, total_cost, urgency)
+            
+            # Determine timeline based on urgency
+            timeline = self._estimate_timeline(urgency, location)
+            
+            # Generate reasoning explanation
+            reasoning = self._generate_reasoning(crisis_type, supplies, location, urgency)
+            
+            return {
+                "supplies": supplies,
+                "estimated_cost": int(total_cost),
+                "logistics_cost": int(logistics_cost),
+                "estimated_beneficiaries": beneficiaries,
+                "efficiency_score": efficiency_score,
+                "estimated_timeline": timeline,
+                "reasoning": reasoning,
+                "crisis_category": self._categorize_crisis(crisis_type),
+                "region_factor": self._get_region_factor(location)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"MeTTa optimization error: {e}")
+            return self._fallback_optimization(crisis_type, location, urgency, budget)
     
-    def _parse_mission_intent(self, description: str) -> Dict[str, Any]:
-        """Extract intent from mission description"""
-        desc_lower = description.lower()
+    def _get_recommended_supplies(self, crisis_type: str) -> List[Dict[str, Any]]:
+        """Query MeTTa for recommended supplies based on crisis type"""
         
-        intent = {
-            "type": "general",
-            "urgency": "normal",
-            "location": None,
-            "needs": []
+        # Map crisis types to supply categories
+        supply_mapping = {
+            "earthquake": ["medical", "shelter", "water"],
+            "flood": ["water", "hygiene", "shelter"],
+            "cyclone": ["shelter", "food", "water"],
+            "wildfire": ["medical", "shelter", "water"],
+            "volcano": ["medical", "shelter", "water"],
+            "drought": ["food", "water"],
+            "medical-emergency": ["medical"]
         }
         
-        # Detect crisis type
-        if any(word in desc_lower for word in ["medical", "health", "doctor", "hospital"]):
-            intent["type"] = "medical-emergency"
-            intent["urgency"] = "urgent"
-        elif any(word in desc_lower for word in ["food", "hunger", "nutrition", "meal"]):
-            intent["type"] = "food-security"
-        elif any(word in desc_lower for word in ["water", "clean", "purification"]):
-            intent["type"] = "water-crisis"
-            intent["urgency"] = "critical"
-        elif any(word in desc_lower for word in ["shelter", "tent", "housing"]):
-            intent["type"] = "shelter"
+        categories = supply_mapping.get(crisis_type.lower(), ["medical", "shelter"])
         
-        # Detect location
-        locations = ["gaza", "syria", "yemen", "sudan", "haiti", "ukraine", "afghanistan"]
-        for loc in locations:
-            if loc in desc_lower:
-                intent["location"] = loc.capitalize()
-                break
-        
-        # Detect urgency
-        if any(word in desc_lower for word in ["urgent", "emergency", "immediate", "critical"]):
-            intent["urgency"] = "urgent"
-        
-        return intent
-    
-    def _recommend_supplies(self, intent: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Recommend supplies based on mission intent using MeTTa knowledge"""
         supplies = []
-        
-        mission_type = intent.get("type", "general")
-        
-        # Query MeTTa knowledge base for recommendations
-        if mission_type == "medical-emergency":
-            supplies = [
-                {"name": "Medical Kit - Basic", "quantity": 10, "code": "medical-kit-basic"},
-                {"name": "Medical Kit - Advanced", "quantity": 2, "code": "medical-kit-advanced"},
-                {"name": "Water Purification Kit", "quantity": 3, "code": "water-purification-kit"}
-            ]
-        elif mission_type == "food-security":
-            supplies = [
-                {"name": "Food Package (Family)", "quantity": 50, "code": "food-package-family"},
-                {"name": "Water Purification Kit", "quantity": 5, "code": "water-purification-kit"}
-            ]
-        elif mission_type == "water-crisis":
-            supplies = [
-                {"name": "Water Purification Kit", "quantity": 20, "code": "water-purification-kit"}
-            ]
-        else:
-            # General humanitarian package
-            supplies = [
-                {"name": "Medical Kit - Basic", "quantity": 5, "code": "medical-kit-basic"},
-                {"name": "Food Package (Family)", "quantity": 20, "code": "food-package-family"},
-                {"name": "Water Purification Kit", "quantity": 5, "code": "water-purification-kit"},
-                {"name": "Shelter Tent (Family)", "quantity": 10, "code": "shelter-tent-family"}
-            ]
+        for category in categories:
+            if category == "medical":
+                supplies.append({"name": "Medical Kit - Basic", "quantity": 10, "code": "medical-kit-basic"})
+            elif category == "shelter":
+                supplies.append({"name": "Shelter Tent (Family)", "quantity": 15, "code": "shelter-tent-family"})
+            elif category == "water":
+                supplies.append({"name": "Water Purification Kit", "quantity": 8, "code": "water-purification-kit"})
+            elif category == "food":
+                supplies.append({"name": "Food Package (Family)", "quantity": 20, "code": "food-package-family"})
+            elif category == "hygiene":
+                supplies.append({"name": "Hygiene Family Kit", "quantity": 15, "code": "hygiene-family-kit"})
         
         return supplies
     
-    def _estimate_costs(self, supplies: List[Dict], location: Optional[str]) -> Dict[str, Any]:
-        """Estimate mission costs using MeTTa logistics knowledge"""
-        base_cost = 0
+    def _calculate_costs(self, supplies: List[Dict], location: str) -> tuple:
+        """Calculate total and logistics costs with regional factors"""
         
-        # Calculate base supply costs
         cost_map = {
             "medical-kit-basic": 250,
-            "medical-kit-advanced": 1500,
-            "food-package-family": 150,
-            "water-purification-kit": 400,
+            "medical-kit-advanced": 800,
             "shelter-tent-family": 800,
-            "clothing-package-adult": 75
+            "shelter-tarp-basic": 50,
+            "water-purification-kit": 400,
+            "food-package-family": 150,
+            "hygiene-family-kit": 80
         }
         
-        for supply in supplies:
-            unit_cost = cost_map.get(supply['code'], 100)
-            base_cost += unit_cost * supply['quantity']
+        base_cost = sum(
+            cost_map.get(supply["code"], 100) * supply["quantity"] 
+            for supply in supplies
+        )
         
-        # Apply logistics multipliers
-        multiplier = 1.0
-        risk_factors = []
+        # Apply regional factor
+        region_factor = self._get_region_factor(location)
+        logistics_cost = base_cost * 0.25 * region_factor
+        total_cost = base_cost + logistics_cost
         
-        if location:
-            location_lower = location.lower()
-            if location_lower in ["gaza"]:
-                multiplier *= 1.4
-                risk_factors.append("Access-limited region")
-            elif location_lower in ["syria", "yemen"]:
-                multiplier *= 1.6
-                risk_factors.append("Conflict zone")
-            elif location_lower in ["sudan", "haiti"]:
-                multiplier *= 1.3
-                risk_factors.append("Infrastructure challenges")
-        
-        # Add logistics overhead (20%)
-        logistics_cost = base_cost * 0.20 * multiplier
-        
-        # Add administrative overhead (5%)
-        admin_cost = base_cost * 0.05
-        
-        total = base_cost + logistics_cost + admin_cost
-        
-        return {
-            "base_cost": round(base_cost, 2),
-            "logistics_cost": round(logistics_cost, 2),
-            "admin_cost": round(admin_cost, 2),
-            "total": round(total, 2),
-            "multiplier": multiplier,
-            "risk_factors": risk_factors
-        }
+        return total_cost, logistics_cost
     
-    def _estimate_impact(self, supplies: List[Dict]) -> Dict[str, int]:
-        """Estimate mission impact"""
-        beneficiaries_map = {
+    def _estimate_beneficiaries(self, supplies: List[Dict]) -> int:
+        """Estimate total beneficiaries from supply packages"""
+        
+        beneficiary_map = {
             "medical-kit-basic": 50,
-            "medical-kit-advanced": 200,
-            "food-package-family": 6,
+            "medical-kit-advanced": 100,
+            "shelter-tent-family": 6,
+            "shelter-tarp-basic": 4,
             "water-purification-kit": 100,
-            "shelter-tent-family": 6
+            "food-package-family": 6,
+            "hygiene-family-kit": 5
         }
         
-        total_beneficiaries = 0
-        for supply in supplies:
-            per_package = beneficiaries_map.get(supply['code'], 10)
-            total_beneficiaries += per_package * supply['quantity']
-        
-        return {
-            "beneficiaries": total_beneficiaries,
-            "packages": sum(s['quantity'] for s in supplies)
-        }
+        return sum(
+            beneficiary_map.get(supply["code"], 10) * supply["quantity"]
+            for supply in supplies
+        )
     
-    def _estimate_timeline(self, urgency: str, location: Optional[str]) -> int:
-        """Estimate delivery timeline in days"""
-        base_days = 7
-        
-        if urgency == "urgent":
-            base_days = 3
-        elif urgency == "critical":
-            base_days = 2
-        
-        if location:
-            location_lower = location.lower()
-            if location_lower in ["syria", "yemen"]:
-                base_days += 7  # Conflict zone delays
-            elif location_lower in ["gaza"]:
-                base_days += 3  # Access restrictions
-        
-        return base_days
-    
-    def _calculate_efficiency(self, cost: Dict, impact: Dict) -> int:
+    def _calculate_efficiency(self, beneficiaries: int, cost: float, urgency: str) -> int:
         """Calculate efficiency score (0-100)"""
-        if cost['total'] == 0:
-            return 0
         
-        # Cost per beneficiary
-        cost_per_person = cost['total'] / max(impact['beneficiaries'], 1)
+        base_efficiency = min(100, int((beneficiaries / cost) * 100) + 50)
         
-        # Lower cost per person = higher efficiency
-        # Ideal: $10-20 per beneficiary = 100%
-        # Acceptable: $20-50 per beneficiary = 70-90%
-        # High: >$50 per beneficiary = <70%
+        # Urgency bonus
+        urgency_bonus = {
+            "critical": 20,
+            "urgent": 15,
+            "high": 10,
+            "medium": 5
+        }.get(urgency.lower(), 0)
         
-        if cost_per_person <= 20:
-            efficiency = 100
-        elif cost_per_person <= 50:
-            efficiency = 100 - int((cost_per_person - 20) * 1.0)
-        else:
-            efficiency = max(50, 70 - int((cost_per_person - 50) * 0.5))
-        
-        return min(100, max(0, efficiency))
+        return min(100, base_efficiency + urgency_bonus)
     
-    def _format_recommendation(self, supplies: List[Dict], cost: Dict) -> str:
-        """Format supply recommendation"""
-        supply_list = "\n".join([
-            f"- {s['quantity']}x {s['name']}"
-            for s in supplies
-        ])
+    def _estimate_timeline(self, urgency: str, location: str) -> str:
+        """Estimate mission timeline"""
         
-        return f"""**Recommended Supply Package:**
-
-{supply_list}
-
-**Estimated Cost:** ${cost['total']:,.2f} PYUSD
-- Supplies: ${cost['base_cost']:,.2f}
-- Logistics: ${cost['logistics_cost']:,.2f}
-- Administrative: ${cost['admin_cost']:,.2f}
-"""
+        base_timeline = {
+            "critical": "3-5 days",
+            "urgent": "5-7 days",
+            "high": "7-14 days",
+            "medium": "14-21 days"
+        }.get(urgency.lower(), "7-14 days")
+        
+        # Adjust for difficult regions
+        difficult_regions = ["gaza", "syria", "yemen", "afghanistan"]
+        if location.lower() in difficult_regions:
+            return f"{base_timeline} (extended due to access challenges)"
+        
+        return base_timeline
     
-    def _generate_reasoning(self, intent: Dict, supplies: List[Dict], cost: Dict) -> str:
-        """Generate reasoning explanation"""
-        reasoning = f"Based on the mission type '{intent['type']}'"
+    def _get_region_factor(self, location: str) -> float:
+        """Get regional difficulty factor"""
         
-        if intent.get('location'):
-            reasoning += f" in {intent['location']}"
+        region_factors = {
+            "gaza": 1.5,
+            "syria": 1.8,
+            "yemen": 1.6,
+            "haiti": 1.3,
+            "afghanistan": 1.7
+        }
         
-        reasoning += f", I've optimized for {intent['urgency']} response. "
+        return region_factors.get(location.lower(), 1.0)
+    
+    def _categorize_crisis(self, crisis_type: str) -> str:
+        """Categorize crisis type"""
         
-        if cost.get('risk_factors'):
-            reasoning += f"Risk factors: {', '.join(cost['risk_factors'])}. "
+        categories = {
+            "earthquake": "natural-disaster",
+            "flood": "natural-disaster",
+            "cyclone": "natural-disaster",
+            "wildfire": "natural-disaster",
+            "volcano": "natural-disaster",
+            "drought": "food-insecurity",
+            "medical-emergency": "health-crisis"
+        }
         
-        reasoning += f"The supply mix balances immediate needs with cost-effectiveness."
+        return categories.get(crisis_type.lower(), "general")
+    
+    def _generate_reasoning(self, crisis_type: str, supplies: List[Dict], 
+                           location: str, urgency: str) -> str:
+        """Generate human-readable reasoning explanation"""
+        
+        supply_names = ", ".join([s["name"] for s in supplies])
+        
+        reasoning = (
+            f"For a {urgency} {crisis_type} crisis in {location}, "
+            f"the optimal supply package includes: {supply_names}. "
+            f"This combination balances immediate needs with cost-effectiveness."
+        )
+        
+        if self._get_region_factor(location) > 1.0:
+            reasoning += f" Regional logistics challenges in {location} require additional planning."
         
         return reasoning
     
-    def validate_mission(self, mission_data: Dict) -> Dict[str, Any]:
-        """Validate mission data using MeTTa rules"""
-        is_valid = True
-        reason = ""
+    def _fallback_optimization(self, crisis_type: str, location: str, 
+                               urgency: str, budget: Optional[float]) -> Dict[str, Any]:
+        """Fallback optimization when MeTTa is unavailable"""
         
-        # Check required fields
-        if not mission_data.get('location'):
-            is_valid = False
-            reason = "Location is required"
+        self.logger.info("Using fallback optimization (MeTTa unavailable)")
         
-        if not mission_data.get('funding_goal') or mission_data['funding_goal'] <= 0:
-            is_valid = False
-            reason = "Valid funding goal is required"
-        
-        if not mission_data.get('items') or len(mission_data['items']) == 0:
-            is_valid = False
-            reason = "At least one supply item is required"
-        
-        # Check realistic funding
-        if mission_data.get('funding_goal', 0) > 1000000:
-            is_valid = False
-            reason = "Funding goal exceeds reasonable limit ($1M PYUSD)"
+        supplies = self._get_recommended_supplies(crisis_type)
+        total_cost, logistics_cost = self._calculate_costs(supplies, location)
+        beneficiaries = self._estimate_beneficiaries(supplies)
+        efficiency_score = self._calculate_efficiency(beneficiaries, total_cost, urgency)
+        timeline = self._estimate_timeline(urgency, location)
+        reasoning = self._generate_reasoning(crisis_type, supplies, location, urgency)
         
         return {
-            "is_valid": is_valid,
-            "reason": reason if not is_valid else "Mission data is valid"
+            "supplies": supplies,
+            "estimated_cost": int(total_cost),
+            "logistics_cost": int(logistics_cost),
+            "estimated_beneficiaries": beneficiaries,
+            "efficiency_score": efficiency_score,
+            "estimated_timeline": timeline,
+            "reasoning": reasoning,
+            "crisis_category": self._categorize_crisis(crisis_type),
+            "region_factor": self._get_region_factor(location)
         }
-    
-    def prioritize_missions(self, missions: List[Dict]) -> List[Dict]:
-        """Prioritize missions using MeTTa knowledge"""
-        # Score each mission
-        for mission in missions:
-            score = 50  # Base score
-            
-            # Urgency boost
-            if "urgent" in mission.get('description', '').lower():
-                score += 30
-            
-            # Critical needs boost
-            if any(word in mission.get('description', '').lower() 
-                   for word in ["medical", "emergency", "critical"]):
-                score += 20
-            
-            # Funding gap penalty
-            if mission.get('fundsAllocated', 0) < mission.get('fundingGoal', 1) * 0.5:
-                score += 15  # Less funded = higher priority
-            
-            mission['priority_score'] = score
-        
-        # Sort by priority score
-        return sorted(missions, key=lambda m: m.get('priority_score', 0), reverse=True)
-    
-    def query_knowledge(self, query: str) -> Dict[str, Any]:
-        """Query the humanitarian knowledge base"""
-        query_lower = query.lower()
-        
-        # Simple knowledge retrieval (can be enhanced with MeTTa queries)
-        knowledge = {
-            "crisis_types": [
-                "Medical Emergency", "Natural Disaster", "Conflict", 
-                "Food Security", "Water Crisis", "Refugee Support"
-            ],
-            "supply_categories": [
-                "Medical", "Food", "Water", "Shelter", "Clothing"
-            ]
-        }
-        
-        if "crisis" in query_lower or "type" in query_lower:
-            answer = "I know about these crisis types: " + ", ".join(knowledge['crisis_types'])
-        elif "supply" in query_lower or "item" in query_lower:
-            answer = "I can help with these supply categories: " + ", ".join(knowledge['supply_categories'])
-        else:
-            answer = "I have knowledge about humanitarian crisis types, supply chains, logistics, and impact estimation. What would you like to know?"
-        
-        return {
-            "answer": answer,
-            "knowledge": knowledge,
-            "related_queries": [
-                "What crisis types do you handle?",
-                "How do you estimate costs?",
-                "What supplies are most critical?"
-            ]
-        }
-
-
-# Standalone testing
-if __name__ == "__main__":
-    if METTA_AVAILABLE:
-        print("🧠 Testing MeTTa Humanitarian Reasoner...\n")
-        
-        reasoner = MettaHumanitarianReasoner()
-        
-        # Test mission optimization
-        test_mission = "Create urgent mission in Gaza for medical supplies"
-        result = reasoner.optimize_mission_plan(test_mission)
-        
-        print("Test Mission:", test_mission)
-        print("\nOptimization Result:")
-        print(result['recommendation'])
-        print("\nReasoning:", result['reasoning'])
-        print(f"Cost: ${result['estimated_cost']}")
-        print(f"Beneficiaries: {result['estimated_beneficiaries']}")
-        print(f"Timeline: {result['estimated_timeline']}")
-        print(f"Efficiency: {result['efficiency_score']}%")
-    else:
-        print("❌ MeTTa not available. Install with: pip install hyperon")
 
