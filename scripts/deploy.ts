@@ -8,7 +8,7 @@ dotenv.config();
  * Deploys to Sepolia testnet with PYUSD integration
  */
 async function main() {
-  console.log("🚀 Starting AidRoute deployment to Sepolia testnet...\n");
+  console.log("🚀 Starting AidRoute deployment...\n");
 
   // Get PYUSD address from environment or use Sepolia default
   const PYUSD_ADDRESS =
@@ -18,13 +18,21 @@ async function main() {
   console.log("  - Network:", hre.network.name);
   console.log("  - PYUSD Address:", PYUSD_ADDRESS);
 
+  // Get the deployer account using viem
   const [deployer] = await hre.viem.getWalletClients();
   const publicClient = await hre.viem.getPublicClient();
 
   console.log("  - Deployer:", deployer.account.address);
+  console.log(
+    "  - Balance:",
+    (
+      await publicClient.getBalance({ address: deployer.account.address })
+    ).toString()
+  );
+
   console.log("\n⏳ Deploying AidRouteMissions contract...");
 
-  // Deploy the contract
+  // Deploy the contract using viem
   const aidRouteMissions = await hre.viem.deployContract("AidRouteMissions", [
     PYUSD_ADDRESS,
   ]);
@@ -34,15 +42,21 @@ async function main() {
 
   // Get initial stats
   console.log("\n📊 Initial Contract State:");
-  const stats = await aidRouteMissions.read.getStats();
-  console.log("  - Total Missions:", stats[0].toString());
-  console.log("  - Total Donations:", stats[1].toString());
-  console.log("  - Total Deployed:", stats[2].toString());
-  console.log("  - General Fund:", stats[3].toString());
-  console.log("  - Contract Balance:", stats[4].toString());
+  try {
+    const stats = await aidRouteMissions.read.getStats();
+    console.log("  - Total Missions:", stats[0].toString());
+    console.log("  - Total Donations:", stats[1].toString());
+    console.log("  - Total Deployed:", stats[2].toString());
+    console.log("  - General Fund:", stats[3].toString());
+    console.log("  - Contract Balance:", stats[4].toString());
 
-  const owner = await aidRouteMissions.read.owner();
-  console.log("  - Owner:", owner);
+    const owner = await aidRouteMissions.read.owner();
+    console.log("  - Owner:", owner);
+  } catch (error) {
+    console.log(
+      "  - Could not fetch initial stats (contract may not be fully deployed yet)"
+    );
+  }
 
   console.log("\n🎉 Deployment completed successfully!");
   console.log("\n📝 Next steps:");
@@ -50,10 +64,13 @@ async function main() {
   console.log("  2. Get PYUSD from Sepolia faucet: https://faucet.paxos.com/");
   console.log("  3. Approve PYUSD spending for the contract");
   console.log("  4. Start creating missions and accepting donations!");
-  console.log("\n💡 Verify contract on Etherscan:");
-  console.log(
-    `  npx hardhat verify --network sepolia ${aidRouteMissions.address} ${PYUSD_ADDRESS}`
-  );
+
+  if (hre.network.name === "sepolia") {
+    console.log("\n💡 Verify contract on Etherscan:");
+    console.log(
+      `  npx hardhat verify --network sepolia ${aidRouteMissions.address} ${PYUSD_ADDRESS}`
+    );
+  }
 }
 
 main()

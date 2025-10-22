@@ -121,7 +121,13 @@ export async function GET(request: NextRequest) {
     const xmlText = await gdacsResponse.text();
 
     // Parse disasters (simple regex parsing)
-    const disasters = parseGDACSXML(xmlText);
+    const itemRegex = /<item>[\s\S]*?<\/item>/g;
+    const items = xmlText.match(itemRegex) || [];
+    const disasters = items.map(item => {
+      const title = item.match(/<title>(.*?)<\/title>/)?.[1] || 'Unknown';
+      const description = item.match(/<description>(.*?)<\/description>/)?.[1] || '';
+      return { title, description };
+    });
 
     console.log(`✅ Fetched ${disasters.length} disasters from GDACS`);
 
