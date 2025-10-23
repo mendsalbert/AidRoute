@@ -13,6 +13,36 @@ export interface RawDisasterEvent {
   location: string;
 }
 
+// Interface for blockchain integration compatibility
+export interface DisasterEvent {
+  id: string;
+  data: {
+    title: string;
+    location: string;
+    type_name: string;
+    event_type: string;
+    urgency: "critical" | "high" | "medium" | "low";
+    severity_score: number;
+  };
+}
+
+// Interface for needs
+export interface Need {
+  id: string;
+  item: string;
+  quantity: number;
+  location: string;
+  urgency: "critical" | "high" | "medium" | "low";
+  status: string;
+}
+
+// Interface for missions
+export interface Mission {
+  id: string;
+  destination: string;
+  status: string;
+}
+
 // Simple XML tag extractor that works everywhere
 function extractXmlTag(xml: string, tag: string): string {
   const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i");
@@ -213,7 +243,24 @@ class GDACSFetcher {
     try {
       const events = await this.fetchGDACSDisasters();
       this.disasterEvents = [...events, ...this.disasterEvents].slice(0, 50);
+
+      // Emit events in both formats for compatibility
       this.emit("events-updated", events);
+
+      // Also emit in DisasterEvent format for blockchain integration
+      const disasterEvents: DisasterEvent[] = events.map((event, index) => ({
+        id: `${event.eventType}-${Date.now()}-${index}`,
+        data: {
+          title: event.title,
+          location: event.location,
+          type_name: event.typeName,
+          event_type: event.eventType,
+          urgency: event.urgency,
+          severity_score: event.severity,
+        },
+      }));
+
+      this.emit("disasters-updated", disasterEvents);
     } catch (error) {
       console.error("Error updating GDACS data:", error);
     }
@@ -245,6 +292,16 @@ class GDACSFetcher {
 
   getEvents(): RawDisasterEvent[] {
     return [...this.disasterEvents];
+  }
+
+  getSystemStats() {
+    const events = this.getEvents();
+    return {
+      activeMissions: 0, // This would come from blockchain integration
+      urgentNeeds: events.filter((e) => e.urgency === "critical").length,
+      verifiedDeliveries: 0, // This would come from audit records
+      totalFundsDeployed: 0, // This would come from blockchain integration
+    };
   }
 
   destroy() {

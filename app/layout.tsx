@@ -25,6 +25,14 @@ export const metadata: Metadata = {
   title: "AidRoute - Autonomous Humanitarian Coordination",
   description:
     "AI-powered humanitarian logistics coordination platform. Coordinating Aid. Autonomously.",
+  icons: {
+    icon: [
+      { url: "/logo.png?v=2", sizes: "32x32", type: "image/png" },
+      { url: "/logo.png?v=2", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/logo.png?v=2",
+    apple: "/logo.png?v=2",
+  },
 };
 
 export default function RootLayout({

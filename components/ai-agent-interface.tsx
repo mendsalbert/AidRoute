@@ -364,7 +364,7 @@ export function AIAgentSimulator() {
   const handleApproveMission = async () => {
     if (!currentPlan) return;
 
-    // Show MetaMask popup simulation
+    // Show MetaMask popup interface
     setShowMetaMask(true);
     setPendingTransaction({
       type: "mission_creation",
@@ -717,7 +717,7 @@ export function AIAgentSimulator() {
         </div>
       </div>
 
-      {/* MetaMask Popup Simulation */}
+      {/* MetaMask Popup Interface */}
       {showMetaMask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full">

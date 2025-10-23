@@ -21,6 +21,11 @@ import {
   Pause,
   RotateCcw,
   Settings,
+  AlertCircle,
+  CheckCircle2,
+  RefreshCw,
+  Rocket,
+  Square,
 } from "lucide-react";
 
 interface SystemActivity {
@@ -48,7 +53,7 @@ export function LiveSystemMonitor() {
         if (event.data.severity_score >= 3) {
           addActivity({
             type: "disaster",
-            message: `🌍 ${event.data.type_name} detected in ${event.data.location}`,
+            message: `${event.data.type_name} detected in ${event.data.location}`,
             severity: event.data.urgency === "critical" ? "error" : "warning",
           });
         }
@@ -58,7 +63,7 @@ export function LiveSystemMonitor() {
     const handleBlockchainMission = (event: any) => {
       addActivity({
         type: "blockchain",
-        message: `🔗 Mission #${event.missionId} created: ${event.data.location}`,
+        message: `Mission #${event.missionId} created: ${event.data.location}`,
         severity: "success",
       });
       updateBlockchainStats();
@@ -67,7 +72,7 @@ export function LiveSystemMonitor() {
     const handleMissionCompleted = ({ mission }: any) => {
       addActivity({
         type: "mission",
-        message: `✅ Mission completed in ${mission.destination}`,
+        message: `Mission completed in ${mission.destination}`,
         severity: "success",
       });
     };
@@ -76,7 +81,7 @@ export function LiveSystemMonitor() {
       if (need.urgency === "critical") {
         addActivity({
           type: "system",
-          message: `🚨 Critical need registered: ${need.item} in ${need.location}`,
+          message: `Critical need registered: ${need.item} in ${need.location}`,
           severity: "error",
         });
       }
@@ -152,14 +157,14 @@ export function LiveSystemMonitor() {
         automatedDisasterService.stop();
         addActivity({
           type: "system",
-          message: "🛑 Automated service stopped",
+          message: "Automated service stopped",
           severity: "warning",
         });
       } else {
         automatedDisasterService.start();
         addActivity({
           type: "system",
-          message: "🚀 Automated service started",
+          message: "Automated service started",
           severity: "success",
         });
       }
@@ -173,7 +178,7 @@ export function LiveSystemMonitor() {
     try {
       addActivity({
         type: "system",
-        message: "🔄 Manual disaster data fetch triggered",
+        message: "Manual disaster data fetch triggered",
         severity: "info",
       });
       await automatedDisasterService.forceDisasterFetch();
@@ -188,7 +193,7 @@ export function LiveSystemMonitor() {
       if (missionId) {
         addActivity({
           type: "blockchain",
-          message: `🧪 Test mission #${missionId} created successfully`,
+          message: `Test mission #${missionId} created successfully`,
           severity: "success",
         });
       }

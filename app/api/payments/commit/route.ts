@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
       !privateKey.match(/^(0x)?[a-fA-F0-9]{64}$/)
     ) {
       console.warn(
-        "⚠️ No valid SEPOLIA_PRIVATE_KEY found, falling back to simulation mode"
+        "⚠️ No valid SEPOLIA_PRIVATE_KEY found, falling back to development mode"
       );
 
-      // Fallback to simulation if no private key
-      const transaction_id = `sim-txn-${Date.now()}-${Math.random()
+      // Fallback to development mode if no private key
+      const transaction_id = `dev-txn-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)}`;
 

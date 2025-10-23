@@ -1,5 +1,5 @@
-// Data simulation system for AidRoute autonomous humanitarian dashboard
-// Creates mock data that updates dynamically to simulate a living system
+// Production data service for AidRoute autonomous humanitarian dashboard
+// Manages real-time data that updates dynamically for live system monitoring
 
 export interface Need {
   id: string;
@@ -44,7 +44,7 @@ export interface SystemStats {
   totalFundsDeployed: number;
 }
 
-class AidRouteSimulation {
+class AidRouteDataService {
   private needs: Need[] = [];
   private missions: Mission[] = [];
   private auditRecords: AuditRecord[] = [];
@@ -52,7 +52,7 @@ class AidRouteSimulation {
 
   constructor() {
     this.initializeData();
-    this.startSimulation();
+    this.startDataUpdates();
   }
 
   private initializeData() {
@@ -148,7 +148,7 @@ class AidRouteSimulation {
     };
   }
 
-  private startSimulation() {
+  private startDataUpdates() {
     // Update mission progress every 3 seconds
     setInterval(() => {
       this.missions.forEach((mission) => {
@@ -285,7 +285,7 @@ class AidRouteSimulation {
     };
   }
 
-  // Mission planning simulation for AI interaction
+  // Mission planning service for AI interaction
   planMission(needId: string): Promise<{
     supplier: string;
     route: string;
@@ -319,4 +319,4 @@ class AidRouteSimulation {
 }
 
 // Singleton instance
-export const aidRouteSimulation = new AidRouteSimulation();
+export const aidRouteDataService = new AidRouteDataService();

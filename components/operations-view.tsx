@@ -16,6 +16,13 @@ import {
   TrendingUp,
   Zap,
   ExternalLink,
+  Globe,
+  Droplets,
+  Mountain,
+  Flame,
+  Wind,
+  Sun,
+  MapPin as LocationPin,
 } from "lucide-react";
 
 export function OperationsView() {
@@ -41,22 +48,22 @@ export function OperationsView() {
   const criticalEvents = events.filter((e) => e.urgency === "critical");
   const highEvents = events.filter((e) => e.urgency === "high");
 
-  const typeToEmoji = (type: string) => {
+  const typeToIcon = (type: string) => {
     switch (type) {
       case "EQ":
-        return "🌍";
+        return <Globe className="w-5 h-5 text-blue-500" />;
       case "FL":
-        return "💧";
+        return <Droplets className="w-5 h-5 text-cyan-500" />;
       case "VO":
-        return "🌋";
+        return <Mountain className="w-5 h-5 text-purple-500" />;
       case "WF":
-        return "🔥";
+        return <Flame className="w-5 h-5 text-amber-500" />;
       case "TC":
-        return "🌪️";
+        return <Wind className="w-5 h-5 text-indigo-500" />;
       case "DR":
-        return "🏜️";
+        return <Sun className="w-5 h-5 text-orange-500" />;
       default:
-        return "📍";
+        return <LocationPin className="w-5 h-5 text-gray-500" />;
     }
   };
 
@@ -303,7 +310,9 @@ export function OperationsView() {
                 onClick={() => setSelectedEvent(event)}
               >
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl">{typeToEmoji(event.eventType)}</div>
+                  <div className="flex items-center justify-center w-8 h-8">
+                    {typeToIcon(event.eventType)}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
                       <span

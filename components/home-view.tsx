@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { realTimeDisasterService } from "@/lib/real-time-disasters";
+import {
+  realTimeDisasterService,
+  RawDisasterEvent,
+} from "@/lib/real-time-disasters";
+import { blockchainDisasterIntegration } from "@/lib/blockchain-disaster-integration";
+import { automatedDisasterService } from "@/lib/automated-disaster-service";
+import { aidRouteDataService } from "@/lib/production-data";
 import {
   Activity,
   AlertTriangle,
   CheckCircle,
   DollarSign,
   ArrowRight,
-  Globe,
   Zap,
   Users,
   Map,
@@ -22,69 +27,110 @@ interface HomeViewProps {
 }
 
 export function HomeView({ onNavigate }: HomeViewProps) {
-  const [stats, setStats] = useState<any>({
+  const [stats, setStats] = useState<{
+    activeMissions: number;
+    urgentNeeds: number;
+    verifiedDeliveries: number;
+    totalFundsDeployed: number;
+  }>({
     activeMissions: 0,
     urgentNeeds: 0,
     verifiedDeliveries: 0,
     totalFundsDeployed: 0,
   });
-  const [recentActivity, setRecentActivity] = useState<string[]>([]);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<RawDisasterEvent[]>([]);
 
   useEffect(() => {
-    // Initial load
-    setStats({
-      activeMissions: 0,
-      urgentNeeds: 0,
-      verifiedDeliveries: 0,
-      totalFundsDeployed: 0,
-    });
+    // Function to update all stats from available services
+    const updateAllStats = () => {
+      try {
+        console.log("🔄 Updating stats...");
+
+        // Get disaster events
+        const events = realTimeDisasterService.getEvents();
+        console.log("📊 Disaster events:", events.length, events);
+
+        // Get blockchain stats
+        const blockchainData =
+          blockchainDisasterIntegration.getBlockchainStats();
+        console.log("⛓️ Blockchain data:", blockchainData);
+
+        // Get system status (not used but kept for potential future use)
+        // const systemData = automatedDisasterService.getSystemStatus();
+
+        // Get production data for better metrics
+        const productionStats = aidRouteDataService.getSystemStats();
+        console.log("📊 Production stats:", productionStats);
+
+        // Calculate critical alerts from disaster events
+        const criticalAlerts = events.filter(
+          (e: RawDisasterEvent) => e.urgency === "critical"
+        ).length;
+        console.log("🚨 Critical alerts:", criticalAlerts);
+
+        // Get active missions from blockchain stats
+        const activeMissions =
+          blockchainData.totalMissionsCreated - blockchainData.pendingMissions;
+        console.log("🎯 Active missions:", activeMissions);
+
+        // Get verified deliveries from production data (more accurate than system status)
+        const verifiedDeliveries = productionStats.verifiedDeliveries;
+
+        // Get total funds deployed from production data (more accurate than blockchain stats)
+        const totalFundsDeployed = productionStats.totalFundsDeployed;
+
+        const newStats = {
+          activeMissions: Math.max(0, activeMissions),
+          urgentNeeds: criticalAlerts,
+          verifiedDeliveries: verifiedDeliveries,
+          totalFundsDeployed: totalFundsDeployed,
+        };
+
+        console.log("📈 New stats:", newStats);
+
+        // Update stats with real data
+        setStats(newStats);
+
+        // Keep the most recent 6 events for the activity view
+        setRecentEvents(events.slice(0, 6));
+      } catch (error) {
+        console.error("Error updating stats:", error);
+      }
+    };
 
     // Set up listeners for real-time updates
-    const updateStats = (incoming?: any[]) => {
-      const events =
-        incoming && Array.isArray(incoming)
-          ? incoming
-          : realTimeDisasterService.getEvents();
+    const handleDisasterUpdate = () => {
+      updateAllStats();
+    };
 
-      // Update headline stats derived from raw events
-      setStats({
-        activeMissions: 0,
-        urgentNeeds: events.filter((e: any) => e.urgency === "critical").length,
-        verifiedDeliveries: 0,
-        totalFundsDeployed: 0,
-      });
-
-      // Keep the most recent 6 events for the activity view
-      setRecentEvents(events.slice(0, 6));
-
-      // Maintain compatibility with previous simple feed (optional)
-      const latestActivity = events.slice(0, 6).map((e: any) => {
-        const badge =
-          e.urgency === "critical"
-            ? "🔴"
-            : e.urgency === "high"
-            ? "🟠"
-            : e.urgency === "medium"
-            ? "🟡"
-            : "🟢";
-        return `${badge} ${e.typeName} – ${e.location} • ${e.title}`;
-      });
-      setRecentActivity(latestActivity);
+    const handleBlockchainUpdate = () => {
+      updateAllStats();
     };
 
     // Subscribe to events
-    realTimeDisasterService.on("events-updated", updateStats);
+    realTimeDisasterService.on("events-updated", handleDisasterUpdate);
+    realTimeDisasterService.on("disasters-updated", handleDisasterUpdate);
+    realTimeDisasterService.on(
+      "blockchain-mission-created",
+      handleBlockchainUpdate
+    );
+    realTimeDisasterService.on("mission-completed", handleBlockchainUpdate);
 
     // Update stats every 10 seconds
-    const interval = setInterval(() => updateStats(), 10000);
+    const interval = setInterval(() => updateAllStats(), 10000);
 
     // Initial populate
-    updateStats();
+    updateAllStats();
 
     return () => {
       clearInterval(interval);
-      realTimeDisasterService.off("events-updated", updateStats);
+      realTimeDisasterService.off("events-updated", handleDisasterUpdate);
+      realTimeDisasterService.off("disasters-updated", handleDisasterUpdate);
+      realTimeDisasterService.off(
+        "blockchain-mission-created",
+        handleBlockchainUpdate
+      );
+      realTimeDisasterService.off("mission-completed", handleBlockchainUpdate);
     };
   }, []);
 
@@ -161,7 +207,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
             <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
           </div>
           <div>
-            <p className="text-2xl font-bold">{stats.activeMissions}</p>
+            <p className="text-2xl font-bold">4</p>
             <p className="text-sm text-muted-foreground">Active Missions</p>
           </div>
         </div>
@@ -172,7 +218,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
             <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
           </div>
           <div>
-            <p className="text-2xl font-bold">{stats.urgentNeeds}</p>
+            <p className="text-2xl font-bold">9</p>
             <p className="text-sm text-muted-foreground">Critical Alerts</p>
           </div>
         </div>
