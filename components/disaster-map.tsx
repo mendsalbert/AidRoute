@@ -296,7 +296,7 @@ export function DisasterMap({
 
         {eventsWithCoords.map((event, index) => (
           <DisasterMarker
-            key={event.link || index}
+            key={`${event.link}-${event.title}-${event.pubDate}-${index}`}
             event={event}
             onSelect={onEventSelect}
           />

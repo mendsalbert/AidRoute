@@ -81,10 +81,6 @@ export async function POST(request: NextRequest) {
       privateKey.length < 64 ||
       !privateKey.match(/^(0x)?[a-fA-F0-9]{64}$/)
     ) {
-      console.warn(
-        "⚠️ No valid SEPOLIA_PRIVATE_KEY found, falling back to development mode"
-      );
-
       // Fallback to development mode if no private key
       const transaction_id = `dev-txn-${Date.now()}-${Math.random()
         .toString(36)
@@ -138,15 +134,11 @@ export async function POST(request: NextRequest) {
         args: [BigInt(missionId), amountWei, checksummedRecipient],
       });
 
-      console.log(`✅ Transaction submitted: ${hash}`);
-
       // Wait for transaction confirmation
       const receipt = await publicClient.waitForTransactionReceipt({
         hash,
         confirmations: 1,
       });
-
-      console.log(`🎉 Transaction confirmed in block ${receipt.blockNumber}`);
 
       return NextResponse.json({
         status: "completed",
@@ -163,8 +155,6 @@ export async function POST(request: NextRequest) {
         network: "sepolia",
       });
     } catch (blockchainError: any) {
-      console.error("❌ Blockchain transaction failed:", blockchainError);
-
       // Return detailed error for debugging
       return NextResponse.json(
         {
@@ -182,7 +172,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error("❌ Payment commit failed:", error);
     return NextResponse.json(
       {
         error: "commit_failed",

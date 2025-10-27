@@ -59,13 +59,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid message" }, { status: 400 });
     }
 
-    console.log(`💬 Chat request: "${message}"`);
-    console.log(`🔗 Routing to Agentverse agent: ${AGENT_ADDRESS}`);
-    console.log(`🔑 API Key: ${ASI_ONE_API_KEY ? "Present" : "Missing"}`);
-
     // Check if API key is available
     if (!ASI_ONE_API_KEY) {
-      console.error("❌ ASI:One API key is missing");
       return NextResponse.json(
         {
           error: "API key missing",
@@ -97,9 +92,6 @@ export async function POST(request: NextRequest) {
       content: message,
     });
 
-    console.log(`📤 Sending request to ASI:One API...`);
-    console.log(`📋 Messages:`, JSON.stringify(messages, null, 2));
-
     const startTime = Date.now();
 
     // Call ASI:One API with Agentverse agent
@@ -120,13 +112,8 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(120000), // Increased to 120 seconds (2 minutes)
     });
 
-    console.log(`📥 Response status: ${response.status}`);
-    console.log(`⏱️ Request completed in ${Date.now() - startTime}ms`);
-
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("❌ ASI:One API error:", response.status, errorData);
-
       // Return detailed error information
       return NextResponse.json(
         {
@@ -145,10 +132,6 @@ export async function POST(request: NextRequest) {
     const aiMessage =
       data.choices[0]?.message?.content || "No response from agent";
 
-    console.log(`✅ Response received from Agentverse agent`);
-    console.log(`📝 Response length: ${aiMessage.length} characters`);
-    console.log(`📊 Full response data:`, JSON.stringify(data, null, 2));
-
     // Extract suggestions
     const suggestions = extractSuggestions(aiMessage);
 
@@ -166,14 +149,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(chatResponse);
   } catch (error: any) {
-    console.error("❌ Chat error:", error);
-    console.error("❌ Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      cause: error.cause,
-    });
-
     // Handle timeout errors
     if (error.name === "TimeoutError" || error.message?.includes("timeout")) {
       return NextResponse.json(
